@@ -1,0 +1,46 @@
+{
+  "name": "signalk-ajrm-marine-dr-plotter",
+  "version": "0.5.0",
+  "description": "Dead-reckoning chart plotter for AJRM Marine Suite GPS degradation testing.",
+  "main": "plugin/index.js",
+  "scripts": {
+    "test": "node --test && node --check plugin/index.js && node --check public/app.js"
+  },
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-webapp",
+    "signalk-category-navigation",
+    "dead-reckoning",
+    "charts",
+    "watchkeeper",
+    "signal-k",
+    "signalk",
+    "ajrm-marine-suite",
+    "marine",
+    "navigation"
+  ],
+  "author": "Anthony McDonald, with assistance from William McAusland",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-dr-plotter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ajrm-marine-suite/signalk-ajrm-marine-dr-plotter/issues"
+  },
+  "homepage": "https://github.com/ajrm-marine-suite/signalk-ajrm-marine-dr-plotter#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "plugin",
+    "public",
+    "README.md",
+    "LICENSE"
+  ],
+  "signalk-plugin-enabled-by-default": true,
+  "signalk": {
+    "displayName": "AJRM Marine DR Plotter",
+    "appIcon": "./icon.svg"
+  }
+}
