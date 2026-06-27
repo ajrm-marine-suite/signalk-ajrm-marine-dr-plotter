@@ -106,6 +106,11 @@ button {
   height: 22px;
 }
 
+svg.control-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
 .status-icon {
   border: 2px solid #132536;
   border-radius: 50%;
@@ -161,41 +166,27 @@ button {
   opacity: 0.48;
 }
 
+.follow-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 .follow-icon {
-  border: 2px solid #132536;
-  border-radius: 50%;
+  color: #132536;
 }
 
-.follow-icon::before,
-.follow-icon::after {
-  content: "";
+.follow-slash-icon {
   position: absolute;
-  background: #132536;
+  inset: 0;
+  color: #b91c1c;
+  display: none;
 }
 
-.follow-icon::before {
-  left: 9px;
-  top: -4px;
-  width: 2px;
-  height: 28px;
-}
-
-.follow-icon::after {
-  left: -4px;
-  top: 9px;
-  width: 28px;
-  height: 2px;
-}
-
-.map-control-button.paused .follow-icon {
-  opacity: 0.68;
-}
-
-.map-control-button.paused .follow-icon::after {
-  transform: rotate(-45deg);
-  height: 3px;
-  top: 9px;
-  background: #991b1b;
+.map-control-button.paused .follow-slash-icon {
+  display: block;
 }
 
 button:active {

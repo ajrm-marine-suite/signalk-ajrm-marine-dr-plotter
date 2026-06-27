@@ -1,6 +1,6 @@
 {
   "name": "signalk-ajrm-marine-dr-plotter",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Dead-reckoning chart plotter for AJRM Marine Suite GPS degradation testing.",
   "main": "plugin/index.js",
   "scripts": {

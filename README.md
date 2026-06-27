@@ -2,9 +2,8 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
-Version `0.1.9` keeps the browser track through tab switches and ordinary page
-refreshes, but clears it when Signal K restarts and the plugin starts a new
-session.
+Version `0.5.1` uses the same follow/centre own-vessel icon as AJRM Marine
+Display.
 
 This app is deliberately not an AIS viewer. It does not plot AIS targets, CPA
 lines, traffic lists, or target alarms. Its job is to answer one question:
