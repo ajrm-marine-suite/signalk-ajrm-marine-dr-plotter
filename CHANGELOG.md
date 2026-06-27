@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3
+
+- Remove obsolete suite naming from package metadata.
+
 ## 0.5.2
 
 - Use the same chart selector icon as AJRM Marine Display.
