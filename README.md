@@ -2,8 +2,8 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
-Version `0.5.1` uses the same follow/centre own-vessel icon as AJRM Marine
-Display.
+Version `0.5.2` uses the same chart selector and follow/centre own-vessel icons
+as AJRM Marine Display.
 
 This app is deliberately not an AIS viewer. It does not plot AIS targets, CPA
 lines, traffic lists, or target alarms. Its job is to answer one question:
