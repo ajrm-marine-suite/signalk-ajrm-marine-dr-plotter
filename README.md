@@ -2,6 +2,9 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
+Version `0.5.4` declares AJRM Marine GPS Integrity as a required companion app
+because DR Plotter renders the dead-reckoning state published by that provider.
+
 Version `0.5.2` uses the same chart selector and follow/centre own-vessel icons
 as AJRM Marine Display.
 
@@ -30,7 +33,9 @@ from Signal K chart resources.
 
 ## Provider
 
-Install and enable `signalk-ajrm-marine-gps-integrity` alongside this app. DR Plotter reads:
+Install and enable `signalk-ajrm-marine-gps-integrity` alongside this app. Signal K
+servers that support AppStore dependencies can install it from DR Plotter's
+`signalk.requires` metadata. DR Plotter reads:
 
 `vessels.self.plugins.ajrmMarineGpsIntegrity.navigationIntegrity`
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.4
+
+- Declare AJRM Marine GPS Integrity as a required companion app.
+
 ## 0.5.3
 
 - Remove obsolete suite naming from package metadata.

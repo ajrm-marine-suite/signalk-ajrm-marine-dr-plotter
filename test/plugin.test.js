@@ -3,6 +3,13 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const pluginFactory = require("../plugin");
+const packageInfo = require("../package.json");
+
+test("package declares GPS Integrity as the DR state provider", () => {
+  assert.deepEqual(packageInfo.signalk.requires, [
+    "signalk-ajrm-marine-gps-integrity",
+  ]);
+});
 
 test("normalizes configured defaults", () => {
   const options = pluginFactory._private.normalizeOptions({
