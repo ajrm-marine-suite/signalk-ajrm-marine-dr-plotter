@@ -1,6 +1,8 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const test = require("node:test");
 const pluginFactory = require("../plugin");
 const packageInfo = require("../package.json");
@@ -84,4 +86,13 @@ test("normalizes persisted plot fixes", () => {
   assert.equal(fixes[0].plotType, "gps-lost");
   assert.equal(fixes[0].position.latitude, 56.2);
   assert.equal(fixes[0].distanceFromLastTrustedFixMeters, 1234);
+});
+
+test("web app renders lost GPS plot fixes as estimated positions", () => {
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "..", "public", "styles.css"), "utf8");
+
+  assert.match(app, /estimated-position/);
+  assert.match(app, /trust === "lost"/);
+  assert.match(css, /\.plot-fix-marker\.estimated-position \.plot-fix-symbol/);
 });

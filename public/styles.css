@@ -330,7 +330,6 @@ button:active {
   margin-right: 8px;
   vertical-align: middle;
   border: 2px solid #0f172a;
-  border-radius: 50%;
   background: #ffffff;
 }
 
@@ -398,48 +397,103 @@ button:active {
   position: relative;
   display: grid;
   place-items: center;
-  min-width: 54px;
-  height: 26px;
-  padding: 0 7px;
-  border: 2px solid #0f172a;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
+  width: 64px;
+  height: 38px;
+  background: transparent;
   color: #0f172a;
   font-weight: 900;
   font-size: 0.78rem;
+}
+
+.plot-fix-symbol {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  width: 20px;
+  height: 20px;
+  transform: translateX(-50%);
+  border: 2px solid #0f172a;
+  background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 2px 5px rgba(15, 23, 42, 0.32);
 }
 
-.plot-fix-marker::before {
+.plot-fix-symbol::after {
   content: "";
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 5px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: #0f172a;
 }
 
-.plot-fix-marker span {
-  position: relative;
-  transform: translateY(-17px);
+.plot-fix-time {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
   padding: 1px 5px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
 }
 
-.plot-fix-marker.gps-lost {
-  border-color: #dc2626;
+.plot-fix-marker.electronic-fix .plot-fix-symbol {
+  border-radius: 2px;
+}
+
+.plot-fix-marker.estimated-position .plot-fix-symbol {
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-bottom: 22px solid #0f172a;
+  border-top: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.plot-fix-marker.estimated-position .plot-fix-symbol::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 4px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 15px solid rgba(255, 255, 255, 0.96);
+}
+
+.plot-fix-marker.estimated-position .plot-fix-symbol::after {
+  top: 14px;
+  z-index: 1;
+}
+
+.plot-fix-marker.gps-lost,
+.plot-fix-marker.estimated-position {
   color: #991b1b;
 }
 
-.plot-fix-marker.gps-lost::before {
+.plot-fix-marker.gps-lost.electronic-fix .plot-fix-symbol {
+  border-color: #dc2626;
+}
+
+.plot-fix-marker.estimated-position .plot-fix-symbol {
+  border-left-color: transparent;
+  border-right-color: transparent;
+  border-bottom-color: #dc2626;
+}
+
+.plot-fix-marker.gps-lost .plot-fix-symbol::after,
+.plot-fix-marker.estimated-position .plot-fix-symbol::after {
   background: #dc2626;
 }
 
-.plot-fix-marker.manual {
+.plot-fix-marker.manual.electronic-fix .plot-fix-symbol {
   border-color: #2563eb;
 }
 

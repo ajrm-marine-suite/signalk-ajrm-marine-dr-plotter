@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.6
+
+- Render GPS-lost plot fixes as Estimated Position triangle symbols, while
+  GPS-derived plot fixes use Electronic Fix square symbols.
+
 ## 0.5.5
 
 - Add persisted DR plot fixes with a configurable automatic interval, manual

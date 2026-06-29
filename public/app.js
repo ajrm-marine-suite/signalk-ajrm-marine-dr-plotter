@@ -783,16 +783,22 @@ function redrawPlotFixes() {
   for (const plotFix of plotFixes) {
     const marker = L.marker([plotFix.position.latitude, plotFix.position.longitude], {
       icon: L.divIcon({
-        className: `plot-fix-marker ${plotFix.plotType || (plotFix.automatic ? "automatic" : "manual")}`,
-        html: `<span>${escapeHtml(formatTime(plotFix.timestamp))}</span>`,
-        iconSize: [58, 28],
-        iconAnchor: [29, 14],
+        className: `plot-fix-marker ${plotFixMarkerClass(plotFix)}`,
+        html: `<span class="plot-fix-time">${escapeHtml(formatTime(plotFix.timestamp))}</span><span class="plot-fix-symbol"></span>`,
+        iconSize: [64, 38],
+        iconAnchor: [32, 24],
       }),
     });
     marker.bindPopup(plotFixPopupHtml(plotFix), { maxWidth: 320 });
     marker.addTo(plotFixLayer);
   }
   keepChartLayersOnTop();
+}
+
+function plotFixMarkerClass(plotFix) {
+  const classes = [plotFix.plotType || (plotFix.automatic ? "timed" : "manual")];
+  classes.push(plotFix.trust === "lost" || plotFix.plotType === "gps-lost" ? "estimated-position" : "electronic-fix");
+  return classes.join(" ");
 }
 
 function plotFixPopupHtml(plotFix) {
@@ -815,7 +821,7 @@ function plotFixPopupHtml(plotFix) {
 }
 
 function plotFixTitle(plotFix) {
-  if (plotFix.plotType === "gps-lost") return "GPS lost plot fix";
+  if (plotFix.trust === "lost" || plotFix.plotType === "gps-lost") return "Estimated position";
   if (plotFix.plotType === "timed" || plotFix.automatic) return "Timed plot fix";
   return "Manual plot fix";
 }

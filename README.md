@@ -27,6 +27,8 @@ The plotter renders:
 - Triple-arrow tide/current vector.
 - Persisted DR plot fixes, labelled with plot time, including automatic timed
   fixes, manual **Plot now** fixes, and an immediate fix when GPS becomes lost.
+  GPS-lost plot fixes are shown as Estimated Position triangle symbols; GPS
+  derived plot fixes are shown as Electronic Fix square symbols.
 - Colour-coded GPS trust state and warnings.
 
 Chart controls follow the same lightweight model as Voyage Viewer: offline
