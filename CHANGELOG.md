@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.11
+
+- Add an **Observed fix** control for manually entering a latitude/longitude
+  fix from bearings, transits, radar, or another non-GPS source.
+- Render observed fixes as dot-in-circle chart symbols and preserve their notes
+  in the persisted plot-fix file.
+
 ## 0.5.10
 
 - Add a bottom-right cursor readout showing live chart latitude and longitude.

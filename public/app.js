@@ -1,4 +1,5 @@
 const apiBase = "/plugins/signalk-ajrm-marine-dr-plotter";
+const gpsIntegrityApiBase = "/plugins/signalk-ajrm-marine-gps-integrity";
 const elements = {
   map: document.querySelector("#map"),
   subtitle: document.querySelector("#subtitle"),
@@ -21,6 +22,10 @@ const elements = {
   plotNowDrawer: document.querySelector("#plotNowDrawer"),
   clearPlots: document.querySelector("#clearPlots"),
   clearAllPlots: document.querySelector("#clearAllPlots"),
+  manualFixLatitude: document.querySelector("#manualFixLatitude"),
+  manualFixLongitude: document.querySelector("#manualFixLongitude"),
+  manualFixNote: document.querySelector("#manualFixNote"),
+  applyManualFix: document.querySelector("#applyManualFix"),
   prunePlotFixesAge: document.querySelector("#prunePlotFixesAge"),
   prunePlotFixes: document.querySelector("#prunePlotFixes"),
   plotStatus: document.querySelector("#plotStatus"),
@@ -690,6 +695,7 @@ function normalizePlotFix(value) {
     drSource: stringOrNull(value.drSource),
     uncertaintyRadiusMeters: finiteOrNull(value.uncertaintyRadiusMeters),
     plotType: normalizePlotType(value.plotType),
+    note: stringOrNull(value.note),
     lastTrustedFixAgeSeconds: finiteOrNull(value.lastTrustedFixAgeSeconds),
     distanceFromLastTrustedFixMeters: finiteOrNull(value.distanceFromLastTrustedFixMeters),
     stwMps: finiteOrNull(value.stwMps),
@@ -711,7 +717,7 @@ function finiteOrNull(value) {
 }
 
 function normalizePlotType(value) {
-  return ["manual", "timed", "gps-lost"].includes(value) ? value : null;
+  return ["manual", "timed", "gps-lost", "observed-fix"].includes(value) ? value : null;
 }
 
 function maybeAddAutomaticPlotFix(state) {
@@ -779,6 +785,44 @@ function createPlotFix(state, automatic, plotType = automatic ? "timed" : "manua
     currentDriftMps: state?.vectors?.tide?.speedMps ?? null,
     currentSetTrueDegrees: state?.vectors?.tide?.bearingTrueDegrees ?? null,
   };
+}
+
+async function applyManualFix() {
+  const latitude = Number(elements.manualFixLatitude.value);
+  const longitude = Number(elements.manualFixLongitude.value);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    showToast("Enter a latitude between -90 and 90.", true);
+    return;
+  }
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    showToast("Enter a longitude between -180 and 180.", true);
+    return;
+  }
+  try {
+    elements.applyManualFix.disabled = true;
+    const note = elements.manualFixNote.value.trim();
+    const result = await sendJson(`${gpsIntegrityApiBase}/manual-fix`, "POST", {
+      position: { latitude, longitude },
+      note,
+    });
+    latestStatus = {
+      ...(latestStatus || {}),
+      ajrmMarineGpsIntegrity: result.state,
+    };
+    const plotFix = createPlotFix(result.state, false, "observed-fix");
+    if (plotFix) {
+      plotFix.id = `plot-${plotFix.timestamp}-observed`;
+      plotFix.position = { latitude, longitude };
+      plotFix.note = note || "Manual observed fix";
+      addPlotFix(plotFix, false);
+    }
+    showToast(`Observed fix set ${formatTime(result.state?.timestamp || new Date().toISOString())}.`);
+    await refreshStatus();
+  } catch (error) {
+    showToast(error.message || "Unable to set observed fix.", true);
+  } finally {
+    elements.applyManualFix.disabled = false;
+  }
 }
 
 function addPlotFix(plotFix, announce = true) {
@@ -851,7 +895,11 @@ function redrawPlotFixes() {
 
 function plotFixMarkerClass(plotFix) {
   const classes = [plotFix.plotType || (plotFix.automatic ? "timed" : "manual")];
-  classes.push(plotFix.trust === "lost" || plotFix.plotType === "gps-lost" ? "estimated-position" : "electronic-fix");
+  if (plotFix.plotType === "observed-fix") {
+    classes.push("observed-fix");
+  } else {
+    classes.push(plotFix.trust === "lost" || plotFix.plotType === "gps-lost" ? "estimated-position" : "electronic-fix");
+  }
   return classes.join(" ");
 }
 
@@ -861,6 +909,7 @@ function plotFixPopupHtml(plotFix) {
       <h3>${escapeHtml(plotFixTitle(plotFix))} ${escapeHtml(formatTime(plotFix.timestamp))}</h3>
       <dl>
         ${popupRow("Position", formatPosition(plotFix.position))}
+        ${plotFix.note ? popupRow("Note", plotFix.note) : ""}
         ${popupRow("GPS status", plotFix.trust ? plotFix.trust.toUpperCase() : "n/a")}
         ${popupRow("DR source", plotFix.drSource || "n/a")}
         ${popupRow("Uncertainty", formatMeters(plotFix.uncertaintyRadiusMeters))}
@@ -876,6 +925,7 @@ function plotFixPopupHtml(plotFix) {
 
 function plotFixTitle(plotFix) {
   if (plotFix.trust === "lost" || plotFix.plotType === "gps-lost") return "Estimated position";
+  if (plotFix.plotType === "observed-fix") return "Observed fix";
   if (plotFix.plotType === "timed" || plotFix.automatic) return "Timed plot fix";
   return "Manual plot fix";
 }
@@ -1096,6 +1146,7 @@ elements.plotNow.addEventListener("click", () => addPlotFix(createPlotFix(latest
 elements.plotNowDrawer.addEventListener("click", () => addPlotFix(createPlotFix(latestStatus?.ajrmMarineGpsIntegrity, false, "manual")));
 elements.clearPlots.addEventListener("click", clearPlotFixes);
 elements.clearAllPlots.addEventListener("click", clearAllPlots);
+elements.applyManualFix.addEventListener("click", applyManualFix);
 elements.prunePlotFixes.addEventListener("click", pruneOldPlotFixes);
 elements.plotInterval.value = localStorage.getItem(plotFixIntervalStorageKey) || "10";
 elements.plotInterval.addEventListener("change", () => {

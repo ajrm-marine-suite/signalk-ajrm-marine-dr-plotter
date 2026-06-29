@@ -345,6 +345,50 @@ button:active {
   margin-top: 10px;
 }
 
+.manual-fix-panel {
+  margin-top: 0.8rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.manual-fix-panel summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.manual-fix-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0.65rem 0;
+}
+
+.manual-fix-grid label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #475569;
+}
+
+.manual-fix-grid input {
+  min-width: 0;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.22);
+  border-radius: 7px;
+  font: inherit;
+}
+
+.manual-fix-note {
+  grid-column: 1 / -1;
+}
+
+.manual-fix-panel button {
+  width: 100%;
+}
+
 .plot-status {
   margin-top: 10px;
   color: #526475;
@@ -502,6 +546,15 @@ button:active {
 
 .plot-fix-marker.electronic-fix .plot-fix-symbol {
   border-radius: 2px;
+}
+
+.plot-fix-marker.observed-fix .plot-fix-symbol {
+  border-color: #16a34a;
+  border-radius: 50%;
+}
+
+.plot-fix-marker.observed-fix .plot-fix-symbol::after {
+  background: #14532d;
 }
 
 .plot-fix-marker.estimated-position .plot-fix-symbol {

@@ -87,6 +87,24 @@
           <button id="clearPlots" type="button">Clear fixes</button>
           <button id="clearAllPlots" type="button">Clear all plots</button>
         </div>
+        <details class="manual-fix-panel">
+          <summary>Observed fix</summary>
+          <div class="manual-fix-grid">
+            <label>
+              <span>Latitude</span>
+              <input id="manualFixLatitude" type="number" inputmode="decimal" step="0.000001" min="-90" max="90" placeholder="56.211234">
+            </label>
+            <label>
+              <span>Longitude</span>
+              <input id="manualFixLongitude" type="number" inputmode="decimal" step="0.000001" min="-180" max="180" placeholder="-5.557890">
+            </label>
+            <label class="manual-fix-note">
+              <span>Note</span>
+              <input id="manualFixNote" type="text" maxlength="80" placeholder="Bearings, transits, or radar">
+            </label>
+          </div>
+          <button id="applyManualFix" type="button">Set observed fix</button>
+        </details>
         <label class="field-row">
           <span>Prune</span>
           <select id="prunePlotFixesAge">

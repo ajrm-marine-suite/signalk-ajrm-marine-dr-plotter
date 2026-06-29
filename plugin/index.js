@@ -192,6 +192,7 @@ function normalizePlotFix(value) {
     drSource: stringOrNull(value.drSource),
     uncertaintyRadiusMeters: finiteOrNull(value.uncertaintyRadiusMeters),
     plotType: normalizePlotType(value.plotType),
+    note: stringOrNull(value.note),
     lastTrustedFixAgeSeconds: finiteOrNull(value.lastTrustedFixAgeSeconds),
     distanceFromLastTrustedFixMeters: finiteOrNull(value.distanceFromLastTrustedFixMeters),
     stwMps: finiteOrNull(value.stwMps),
@@ -204,7 +205,7 @@ function normalizePlotFix(value) {
 }
 
 function normalizePlotType(value) {
-  return ["manual", "timed", "gps-lost"].includes(value) ? value : null;
+  return ["manual", "timed", "gps-lost", "observed-fix"].includes(value) ? value : null;
 }
 
 function normalizePosition(value) {

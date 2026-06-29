@@ -76,16 +76,21 @@ test("normalizes persisted plot fixes", () => {
       currentSetTrueDegrees: "180",
     },
     {
-      timestamp: "not a timestamp",
-      position: { latitude: 56, longitude: -5 },
+      id: "observed",
+      timestamp: "2026-06-29T10:05:00.000Z",
+      plotType: "observed-fix",
+      position: { latitude: 56.21, longitude: -5.56 },
+      note: "visual bearings",
     },
   ]);
 
-  assert.equal(fixes.length, 1);
+  assert.equal(fixes.length, 2);
   assert.equal(fixes[0].id, "lost-fix");
   assert.equal(fixes[0].plotType, "gps-lost");
   assert.equal(fixes[0].position.latitude, 56.2);
   assert.equal(fixes[0].distanceFromLastTrustedFixMeters, 1234);
+  assert.equal(fixes[1].plotType, "observed-fix");
+  assert.equal(fixes[1].note, "visual bearings");
 });
 
 test("web app renders lost GPS plot fixes as estimated positions", () => {
@@ -142,4 +147,17 @@ test("web app exposes a debugging clear-all-plots control", () => {
   assert.match(html, /id="clearAllPlots"/);
   assert.match(app, /function clearAllPlots/);
   assert.match(app, /operationalTrack = \[\]/);
+});
+
+test("web app can submit observed fixes to GPS Integrity", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "..", "public", "styles.css"), "utf8");
+
+  assert.match(html, /id="manualFixLatitude"/);
+  assert.match(html, /Set observed fix/);
+  assert.match(app, /gpsIntegrityApiBase/);
+  assert.match(app, /function applyManualFix/);
+  assert.match(app, /observed-fix/);
+  assert.match(css, /\.plot-fix-marker\.observed-fix/);
 });
