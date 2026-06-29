@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.5
+
+- Add persisted DR plot fixes with a configurable automatic interval, manual
+  **Plot now** controls, time-labelled chart markers, and navigator popups with
+  position, DR source, uncertainty, GPS age/distance, STW/heading, SOG/COG, and
+  tide set/drift.
+- Automatically drop a plot fix when GPS trust changes to lost.
+
 ## 0.5.4
 
 - Declare AJRM Marine GPS Integrity as a required companion app.

@@ -23,8 +23,10 @@ The plotter renders:
   separate colour and uncertainty circle for spoof/drift testing.
 - Uncertainty circles that expand as confidence drops or each DR track ages.
 - Single-arrow heading/STW vector.
-- Double-arrow tide/current vector.
-- Triple-arrow COG/SOG vector.
+- Double-arrow COG/SOG vector.
+- Triple-arrow tide/current vector.
+- Persisted DR plot fixes, labelled with plot time, including automatic timed
+  fixes, manual **Plot now** fixes, and an immediate fix when GPS becomes lost.
 - Colour-coded GPS trust state and warnings.
 
 Chart controls follow the same lightweight model as Voyage Viewer: offline

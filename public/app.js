@@ -5,6 +5,7 @@ const elements = {
   toggleStatus: document.querySelector("#toggleStatus"),
   toggleCharts: document.querySelector("#toggleCharts"),
   centreOwnship: document.querySelector("#centreOwnship"),
+  plotNow: document.querySelector("#plotNow"),
   statusDrawer: document.querySelector("#statusDrawer"),
   chartDrawer: document.querySelector("#chartDrawer"),
   statusLine: document.querySelector("#statusLine"),
@@ -14,6 +15,10 @@ const elements = {
   uncertainty: document.querySelector("#uncertainty"),
   drSource: document.querySelector("#drSource"),
   hdop: document.querySelector("#hdop"),
+  plotInterval: document.querySelector("#plotInterval"),
+  plotNowDrawer: document.querySelector("#plotNowDrawer"),
+  clearPlots: document.querySelector("#clearPlots"),
+  plotStatus: document.querySelector("#plotStatus"),
   chartStatus: document.querySelector("#chartStatus"),
   baseMapChoices: [...document.querySelectorAll('input[name="baseMap"]')],
   autoCharts: document.querySelector("#checkAutoCharts"),
@@ -33,14 +38,24 @@ let chartResourcesLoaded = false;
 let chartResourcesLoading = null;
 let seamarkLayer;
 let trackLayer;
+let plotFixLayer;
 let overlayLayer;
 let latestStatus = null;
 let mapFollowSelf = true;
 let disableMapFollowPause = false;
 let operationalTrack = [];
 let operationalTrackStartedAt = null;
+let plotFixes = [];
+let plotFixesLoaded = false;
+let plotFixSavePending = false;
+let lastTrustState = null;
+let gpsLostPlotFixRecordedFor = null;
 const maxTrackPoints = 7200;
+const maxPlotFixes = 1000;
 const trackStorageKey = "ajrmMarineDrPlotterOperationalTrack";
+const plotFixStorageKey = "ajrmMarineDrPlotterPlotFixes";
+const plotFixIntervalStorageKey = "ajrmMarineDrPlotterPlotIntervalMinutes";
+const mpsToKnots = 1.9438444924406046;
 const chartLayerZIndex = 650;
 const seamarkLayerZIndex = 750;
 
@@ -53,6 +68,20 @@ function showToast(message, isError = false) {
 
 async function requestJson(url) {
   const response = await fetch(url, { headers: { Accept: "application/json" } });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) throw new Error(data.error || response.statusText);
+  return data;
+}
+
+async function sendJson(url, method, body) {
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.ok === false) throw new Error(data.error || response.statusText);
   return data;
@@ -94,9 +123,11 @@ function initMap(defaults = {}) {
   };
   autoChartGroup = L.layerGroup();
   trackLayer = L.layerGroup().addTo(map);
+  plotFixLayer = L.layerGroup().addTo(map);
   overlayLayer = L.layerGroup().addTo(map);
   loadOperationalTrack();
   redrawOperationalTrack();
+  loadPlotFixes();
   setBaseMap(localStorage.getItem("ajrmMarineDrPlotterBaseMap") || "NaturalEarth (offline)");
   setOverlay(autoChartGroup, localStorage.getItem("ajrmMarineDrPlotterAutoCharts") === "true", "ajrmMarineDrPlotterAutoCharts");
   setOverlay(seamarkLayer, localStorage.getItem("ajrmMarineDrPlotterOpenSeaMap") !== "false", "ajrmMarineDrPlotterOpenSeaMap");
@@ -363,6 +394,7 @@ function keepChartLayersOnTop() {
     seamarkLayer.bringToFront?.();
   }
   if (trackLayer) trackLayer.bringToFront?.();
+  if (plotFixLayer) plotFixLayer.bringToFront?.();
   if (overlayLayer) overlayLayer.bringToFront?.();
 }
 
@@ -414,6 +446,8 @@ function renderIntegrity(state) {
   if (dr) {
     drawVectors(dr, state.vectors || {});
   }
+  maybeAddGpsLostPlotFix(state);
+  maybeAddAutomaticPlotFix(state);
   followOwnshipIfEnabled(state);
   keepChartLayersOnTop();
 }
@@ -562,6 +596,242 @@ function redrawOperationalTrack() {
   }).addTo(trackLayer);
 }
 
+async function loadPlotFixes() {
+  try {
+    const data = await requestJson(`${apiBase}/plot-fixes`);
+    plotFixes = normalizePlotFixes(data.plotFixes || []);
+    plotFixesLoaded = true;
+    savePlotFixesLocal();
+  } catch (_error) {
+    plotFixes = loadPlotFixesLocal();
+    plotFixesLoaded = true;
+  }
+  redrawPlotFixes();
+  updatePlotStatus();
+}
+
+function loadPlotFixesLocal() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(plotFixStorageKey) || "null");
+    return normalizePlotFixes(parsed?.plotFixes || parsed || []);
+  } catch {
+    return [];
+  }
+}
+
+function savePlotFixesLocal() {
+  try {
+    localStorage.setItem(plotFixStorageKey, JSON.stringify({ plotFixes: plotFixes.slice(-maxPlotFixes) }));
+  } catch (_error) {
+    // Browser storage is a convenience fallback; server persistence is preferred.
+  }
+}
+
+async function savePlotFixesServer() {
+  if (plotFixSavePending) return;
+  plotFixSavePending = true;
+  try {
+    await sendJson(`${apiBase}/plot-fixes`, "PUT", { plotFixes });
+  } catch (_error) {
+    savePlotFixesLocal();
+  } finally {
+    plotFixSavePending = false;
+  }
+}
+
+function normalizePlotFixes(value) {
+  return (Array.isArray(value) ? value : [])
+    .map(normalizePlotFix)
+    .filter(Boolean)
+    .sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp))
+    .slice(-maxPlotFixes);
+}
+
+function normalizePlotFix(value) {
+  const position = value?.position;
+  const latitude = Number(position?.latitude);
+  const longitude = Number(position?.longitude);
+  const timestampMs = Date.parse(value?.timestamp);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(timestampMs)) return null;
+  return {
+    id: typeof value.id === "string" ? value.id : `plot-${new Date(timestampMs).toISOString()}`,
+    timestamp: new Date(timestampMs).toISOString(),
+    automatic: value.automatic === true,
+    position: { latitude, longitude },
+    trust: stringOrNull(value.trust),
+    drSource: stringOrNull(value.drSource),
+    uncertaintyRadiusMeters: finiteOrNull(value.uncertaintyRadiusMeters),
+    plotType: normalizePlotType(value.plotType),
+    lastTrustedFixAgeSeconds: finiteOrNull(value.lastTrustedFixAgeSeconds),
+    distanceFromLastTrustedFixMeters: finiteOrNull(value.distanceFromLastTrustedFixMeters),
+    stwMps: finiteOrNull(value.stwMps),
+    headingTrueDegrees: finiteOrNull(value.headingTrueDegrees),
+    sogMps: finiteOrNull(value.sogMps),
+    cogTrueDegrees: finiteOrNull(value.cogTrueDegrees),
+    currentDriftMps: finiteOrNull(value.currentDriftMps),
+    currentSetTrueDegrees: finiteOrNull(value.currentSetTrueDegrees),
+  };
+}
+
+function stringOrNull(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function finiteOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function normalizePlotType(value) {
+  return ["manual", "timed", "gps-lost"].includes(value) ? value : null;
+}
+
+function maybeAddAutomaticPlotFix(state) {
+  if (!plotFixesLoaded) return;
+  const intervalMinutes = selectedPlotIntervalMinutes();
+  if (!intervalMinutes) return;
+  const timestampMs = Date.parse(state?.timestamp);
+  if (!Number.isFinite(timestampMs)) return;
+  const last = plotFixes[plotFixes.length - 1];
+  const lastMs = Date.parse(last?.timestamp);
+  if (Number.isFinite(lastMs) && timestampMs - lastMs < intervalMinutes * 60 * 1000) return;
+  const plotFix = createPlotFix(state, true, "timed");
+  if (!plotFix) return;
+  addPlotFix(plotFix, false);
+}
+
+function maybeAddGpsLostPlotFix(state) {
+  if (!plotFixesLoaded) return;
+  const trust = state?.trust || "unknown";
+  if (trust !== "lost") {
+    if (trust !== lastTrustState) gpsLostPlotFixRecordedFor = null;
+    lastTrustState = trust;
+    return;
+  }
+  const lostKey = state?.lastTrustedFix?.timestamp || state?.timestamp || "lost";
+  if (lastTrustState === "lost" || gpsLostPlotFixRecordedFor === lostKey) return;
+  const plotFix = createPlotFix(state, true, "gps-lost");
+  if (plotFix && addPlotFix(plotFix, false)) {
+    gpsLostPlotFixRecordedFor = lostKey;
+    showToast(`GPS lost. Plotted DR fix ${formatTime(plotFix.timestamp)}.`);
+  }
+  lastTrustState = trust;
+}
+
+function selectedPlotIntervalMinutes() {
+  const value = Number(elements.plotInterval.value);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function createPlotFix(state, automatic, plotType = automatic ? "timed" : "manual") {
+  const operationalDr = state?.operationalDeadReckoning || state?.deadReckoning || {};
+  const position = ownshipFollowPosition(state);
+  if (!position) return null;
+  const lastTrustedPosition = state?.lastTrustedFix?.position || null;
+  const timestamp = state?.timestamp || new Date().toISOString();
+  const timestampMs = Date.parse(timestamp);
+  const lastTrustedMs = Date.parse(state?.lastTrustedFix?.timestamp);
+  return {
+    id: `plot-${new Date(Number.isFinite(timestampMs) ? timestampMs : Date.now()).toISOString()}-${automatic ? "auto" : "manual"}`,
+    timestamp,
+    automatic,
+    plotType,
+    position,
+    trust: state?.trust || null,
+    drSource: operationalDr.source || null,
+    uncertaintyRadiusMeters: operationalDr.uncertaintyRadiusMeters ?? null,
+    lastTrustedFixAgeSeconds: Number.isFinite(lastTrustedMs) && Number.isFinite(timestampMs)
+      ? Math.max(0, (timestampMs - lastTrustedMs) / 1000)
+      : operationalDr.ageSeconds ?? null,
+    distanceFromLastTrustedFixMeters: lastTrustedPosition ? distanceMeters(lastTrustedPosition, position) : null,
+    stwMps: state?.vectors?.headingThroughWater?.speedMps ?? null,
+    headingTrueDegrees: state?.vectors?.headingThroughWater?.bearingTrueDegrees ?? null,
+    sogMps: state?.vectors?.courseOverGround?.speedMps ?? state?.gps?.speedOverGround ?? null,
+    cogTrueDegrees: state?.vectors?.courseOverGround?.bearingTrueDegrees ?? radToDegrees(state?.gps?.courseOverGroundTrue),
+    currentDriftMps: state?.vectors?.tide?.speedMps ?? null,
+    currentSetTrueDegrees: state?.vectors?.tide?.bearingTrueDegrees ?? null,
+  };
+}
+
+function addPlotFix(plotFix, announce = true) {
+  const normalized = normalizePlotFix(plotFix);
+  if (!normalized) {
+    if (announce) showToast("No DR position available to plot.", true);
+    return false;
+  }
+  plotFixes = normalizePlotFixes([...plotFixes, normalized]);
+  savePlotFixesLocal();
+  redrawPlotFixes();
+  updatePlotStatus();
+  savePlotFixesServer();
+  if (announce) showToast(`Plotted DR fix ${formatTime(normalized.timestamp)}.`);
+  return true;
+}
+
+function clearPlotFixes() {
+  plotFixes = [];
+  savePlotFixesLocal();
+  redrawPlotFixes();
+  updatePlotStatus();
+  sendJson(`${apiBase}/plot-fixes`, "DELETE").catch(() => {});
+  showToast("Plot fixes cleared.");
+}
+
+function redrawPlotFixes() {
+  if (!plotFixLayer) return;
+  plotFixLayer.clearLayers();
+  for (const plotFix of plotFixes) {
+    const marker = L.marker([plotFix.position.latitude, plotFix.position.longitude], {
+      icon: L.divIcon({
+        className: `plot-fix-marker ${plotFix.plotType || (plotFix.automatic ? "automatic" : "manual")}`,
+        html: `<span>${escapeHtml(formatTime(plotFix.timestamp))}</span>`,
+        iconSize: [58, 28],
+        iconAnchor: [29, 14],
+      }),
+    });
+    marker.bindPopup(plotFixPopupHtml(plotFix), { maxWidth: 320 });
+    marker.addTo(plotFixLayer);
+  }
+  keepChartLayersOnTop();
+}
+
+function plotFixPopupHtml(plotFix) {
+  return `
+    <div class="plot-popup">
+      <h3>${escapeHtml(plotFixTitle(plotFix))} ${escapeHtml(formatTime(plotFix.timestamp))}</h3>
+      <dl>
+        ${popupRow("Position", formatPosition(plotFix.position))}
+        ${popupRow("GPS status", plotFix.trust ? plotFix.trust.toUpperCase() : "n/a")}
+        ${popupRow("DR source", plotFix.drSource || "n/a")}
+        ${popupRow("Uncertainty", formatMeters(plotFix.uncertaintyRadiusMeters))}
+        ${popupRow("Last trusted GPS", formatAge(plotFix.lastTrustedFixAgeSeconds))}
+        ${popupRow("DR distance since GPS", formatDistance(plotFix.distanceFromLastTrustedFixMeters))}
+        ${popupRow("STW / heading", `${formatKnots(plotFix.stwMps)} / ${formatDegrees(plotFix.headingTrueDegrees)}`)}
+        ${popupRow("SOG / COG", `${formatKnots(plotFix.sogMps)} / ${formatDegrees(plotFix.cogTrueDegrees)}`)}
+        ${popupRow("Tide set / drift", `${formatDegrees(plotFix.currentSetTrueDegrees)} / ${formatKnots(plotFix.currentDriftMps)}`)}
+      </dl>
+    </div>
+  `;
+}
+
+function plotFixTitle(plotFix) {
+  if (plotFix.plotType === "gps-lost") return "GPS lost plot fix";
+  if (plotFix.plotType === "timed" || plotFix.automatic) return "Timed plot fix";
+  return "Manual plot fix";
+}
+
+function popupRow(label, value) {
+  return `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`;
+}
+
+function updatePlotStatus() {
+  const count = plotFixes.length;
+  const interval = selectedPlotIntervalMinutes();
+  elements.plotStatus.textContent = `${count} plot fix${count === 1 ? "" : "es"}. ${
+    interval ? `Automatic every ${interval} min.` : "Automatic plotting off."
+  }`;
+}
+
 function addPoint(position, className, label) {
   const marker = L.divIcon({
     className: `own-marker ${className}`,
@@ -633,6 +903,62 @@ function distanceMeters(a, b) {
   return 2 * radius * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+function radToDegrees(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  return ((number * 180 / Math.PI) % 360 + 360) % 360;
+}
+
+function formatTime(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "n/a";
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatAge(seconds) {
+  const number = Number(seconds);
+  if (!Number.isFinite(number)) return "n/a";
+  if (number < 90) return `${Math.round(number)} s ago`;
+  return `${Math.round(number / 60)} min ago`;
+}
+
+function formatPosition(position) {
+  if (!position) return "n/a";
+  return `${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}`;
+}
+
+function formatMeters(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? `${Math.round(number)} m` : "n/a";
+}
+
+function formatDistance(value) {
+  const meters = Number(value);
+  if (!Number.isFinite(meters)) return "n/a";
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  return `${(meters / 1852).toFixed(meters < 3704 ? 1 : 0)} miles`;
+}
+
+function formatKnots(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? `${(number * mpsToKnots).toFixed(1)} kn` : "n/a";
+}
+
+function formatDegrees(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? `${Math.round(number)} deg` : "n/a";
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[character]));
+}
+
 function colorForTrust(trust) {
   if (trust === "normal") return "#16a34a";
   if (trust === "degraded") return "#ca8a04";
@@ -644,7 +970,7 @@ async function refreshStatus() {
     latestStatus = await requestJson(`${apiBase}/status`);
     if (!map) initMap(latestStatus.defaults);
     else syncOperationalTrackSession(latestStatus.startedAt);
-    renderIntegrity(latestStatus.ajrmMarineGpsIntegrity);
+  renderIntegrity(latestStatus.ajrmMarineGpsIntegrity);
   } catch (error) {
     showToast(error.message || "Unable to refresh DR state", true);
   }
@@ -659,6 +985,14 @@ elements.toggleCharts.addEventListener("click", () => {
   updateControlButtonStates();
 });
 elements.centreOwnship.addEventListener("click", recenterOnOwnship);
+elements.plotNow.addEventListener("click", () => addPlotFix(createPlotFix(latestStatus?.ajrmMarineGpsIntegrity, false, "manual")));
+elements.plotNowDrawer.addEventListener("click", () => addPlotFix(createPlotFix(latestStatus?.ajrmMarineGpsIntegrity, false, "manual")));
+elements.clearPlots.addEventListener("click", clearPlotFixes);
+elements.plotInterval.value = localStorage.getItem(plotFixIntervalStorageKey) || "10";
+elements.plotInterval.addEventListener("change", () => {
+  localStorage.setItem(plotFixIntervalStorageKey, elements.plotInterval.value);
+  updatePlotStatus();
+});
 for (const choice of elements.baseMapChoices) {
   choice.addEventListener("change", () => setBaseMap(choice.value));
 }

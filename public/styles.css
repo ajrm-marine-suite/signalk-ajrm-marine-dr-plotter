@@ -94,6 +94,13 @@ button {
   padding: 0;
 }
 
+.plot-now-button {
+  min-width: 82px;
+  height: 42px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
 .map-control-button[aria-pressed="true"] {
   background: linear-gradient(#e7f7ff, #b9d8e8);
   border-color: #49748a;
@@ -252,6 +259,38 @@ button:active {
   color: #526475;
 }
 
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(92px, auto);
+  gap: 10px;
+  align-items: center;
+  min-height: 36px;
+}
+
+.field-row select {
+  min-height: 34px;
+  border: 1px solid #7a8ea3;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #132536;
+  font: inherit;
+  font-weight: 700;
+  padding: 4px 8px;
+}
+
+.plot-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.plot-status {
+  margin-top: 10px;
+  color: #526475;
+  font-size: 0.85rem;
+}
+
 .legend {
   display: grid;
   gap: 8px;
@@ -282,6 +321,17 @@ button:active {
 
 .line.track {
   border-top: 4px dotted #0f172a;
+}
+
+.plot-symbol {
+  display: inline-block;
+  width: 24px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: middle;
+  border: 2px solid #0f172a;
+  border-radius: 50%;
+  background: #ffffff;
 }
 
 .line.heading {
@@ -344,6 +394,83 @@ button:active {
   background: #f97316;
 }
 
+.plot-fix-marker {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 54px;
+  height: 26px;
+  padding: 0 7px;
+  border: 2px solid #0f172a;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  font-weight: 900;
+  font-size: 0.78rem;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.32);
+}
+
+.plot-fix-marker::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #0f172a;
+}
+
+.plot-fix-marker span {
+  position: relative;
+  transform: translateY(-17px);
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.plot-fix-marker.gps-lost {
+  border-color: #dc2626;
+  color: #991b1b;
+}
+
+.plot-fix-marker.gps-lost::before {
+  background: #dc2626;
+}
+
+.plot-fix-marker.manual {
+  border-color: #2563eb;
+}
+
+.plot-popup {
+  color: #132536;
+  min-width: 250px;
+}
+
+.plot-popup h3 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.plot-popup dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 5px 10px;
+  margin: 0;
+}
+
+.plot-popup dt {
+  color: #526475;
+  font-weight: 700;
+}
+
+.plot-popup dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 800;
+}
+
 @media (max-width: 760px) {
   .topbar {
     align-items: stretch;
@@ -356,6 +483,7 @@ button:active {
 
   .top-actions {
     width: fit-content;
+    flex-wrap: wrap;
   }
 
   .drawer {

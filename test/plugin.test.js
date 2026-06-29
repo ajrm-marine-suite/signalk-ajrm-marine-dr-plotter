@@ -39,6 +39,9 @@ test("status declares that AIS targets are intentionally absent", () => {
     get(path, handler) {
       if (path === "/status") handler({}, { json(value) { json = value; } });
     },
+    put() {},
+    post() {},
+    delete() {},
   });
   assert.equal(json.noAisTargets, true);
   assert.match(json.startedAt, /^\d{4}-\d{2}-\d{2}T/);
@@ -48,4 +51,37 @@ test("status declares that AIS targets are intentionally absent", () => {
 test("unwraps plain Signal K values without changing them", () => {
   assert.equal(pluginFactory._private.unwrapSignalKValue(42), 42);
   assert.deepEqual(pluginFactory._private.unwrapSignalKValue({ value: { ok: true } }), { ok: true });
+});
+
+test("normalizes persisted plot fixes", () => {
+  const fixes = pluginFactory._private.normalizePlotFixes([
+    {
+      id: "lost-fix",
+      timestamp: "2026-06-29T10:00:00.000Z",
+      automatic: true,
+      plotType: "gps-lost",
+      position: { latitude: "56.2", longitude: "-5.5" },
+      trust: "lost",
+      drSource: "heading-stw-current",
+      uncertaintyRadiusMeters: "42",
+      lastTrustedFixAgeSeconds: "600",
+      distanceFromLastTrustedFixMeters: "1234",
+      stwMps: "0",
+      headingTrueDegrees: "90",
+      sogMps: "1.2",
+      cogTrueDegrees: "95",
+      currentDriftMps: "0.8",
+      currentSetTrueDegrees: "180",
+    },
+    {
+      timestamp: "not a timestamp",
+      position: { latitude: 56, longitude: -5 },
+    },
+  ]);
+
+  assert.equal(fixes.length, 1);
+  assert.equal(fixes[0].id, "lost-fix");
+  assert.equal(fixes[0].plotType, "gps-lost");
+  assert.equal(fixes[0].position.latitude, 56.2);
+  assert.equal(fixes[0].distanceFromLastTrustedFixMeters, 1234);
 });
