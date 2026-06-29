@@ -585,10 +585,10 @@ function updateControlButtonStates() {
   elements.centreOwnship.setAttribute("aria-label", elements.centreOwnship.title);
 }
 
-function updateOperationalTrack(position, timestamp) {
+function updateOperationalTrack(position, timestamp, force = false) {
   if (!position || !trackLayer) return;
   const last = operationalTrack[operationalTrack.length - 1];
-  if (last && distanceMeters(last, position) < 2) return;
+  if (!force && last && distanceMeters(last, position) < 2) return;
   operationalTrack.push({
     latitude: position.latitude,
     longitude: position.longitude,
@@ -918,6 +918,9 @@ function addPlotFix(plotFix, announce = true) {
     return false;
   }
   plotFixes = normalizePlotFixes([...plotFixes, normalized]);
+  if (normalized.plotType !== "observed-fix") {
+    updateOperationalTrack(normalized.position, normalized.timestamp, true);
+  }
   savePlotFixesLocal();
   redrawPlotFixes();
   updatePlotStatus();

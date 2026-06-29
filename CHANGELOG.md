@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.16
+
+- Force a breadcrumb point at the exact coordinate of each current-position DR
+  plot fix, so electronic-fix square centres overlay the breadcrumb course
+  point instead of being separated by breadcrumb distance filtering.
+
 ## 0.5.15
 
 - Make the observed-fix placeholders show symbol-free navigation coordinate

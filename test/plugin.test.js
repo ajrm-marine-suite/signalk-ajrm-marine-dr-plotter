@@ -134,6 +134,14 @@ test("web app exposes manual plot-fix pruning", () => {
   assert.match(app, /savePlotFixesServer\(\)/);
 });
 
+test("web app forces breadcrumb points at plotted electronic fixes", () => {
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+
+  assert.match(app, /updateOperationalTrack\(normalized\.position, normalized\.timestamp, true\)/);
+  assert.match(app, /function updateOperationalTrack\(position, timestamp, force = false\)/);
+  assert.match(app, /!force && last && distanceMeters\(last, position\) < 2/);
+});
+
 test("web app shows live cursor latitude and longitude", () => {
   const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
   const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
