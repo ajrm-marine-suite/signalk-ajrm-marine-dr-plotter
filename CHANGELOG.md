@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.7
+
+- Anchor plotted fix symbols on their centre dot so Estimated Position and
+  Electronic Fix markers stay aligned with the breadcrumb track during zoom.
+
 ## 0.5.6
 
 - Render GPS-lost plot fixes as Estimated Position triangle symbols, while

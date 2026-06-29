@@ -785,8 +785,9 @@ function redrawPlotFixes() {
       icon: L.divIcon({
         className: `plot-fix-marker ${plotFixMarkerClass(plotFix)}`,
         html: `<span class="plot-fix-time">${escapeHtml(formatTime(plotFix.timestamp))}</span><span class="plot-fix-symbol"></span>`,
-        iconSize: [64, 38],
-        iconAnchor: [32, 24],
+        iconSize: [64, 42],
+        iconAnchor: plotFixIconAnchor(plotFix),
+        popupAnchor: [0, -30],
       }),
     });
     marker.bindPopup(plotFixPopupHtml(plotFix), { maxWidth: 320 });
@@ -799,6 +800,10 @@ function plotFixMarkerClass(plotFix) {
   const classes = [plotFix.plotType || (plotFix.automatic ? "timed" : "manual")];
   classes.push(plotFix.trust === "lost" || plotFix.plotType === "gps-lost" ? "estimated-position" : "electronic-fix");
   return classes.join(" ");
+}
+
+function plotFixIconAnchor(plotFix) {
+  return plotFix.trust === "lost" || plotFix.plotType === "gps-lost" ? [32, 34] : [32, 30];
 }
 
 function plotFixPopupHtml(plotFix) {

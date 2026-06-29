@@ -94,5 +94,6 @@ test("web app renders lost GPS plot fixes as estimated positions", () => {
 
   assert.match(app, /estimated-position/);
   assert.match(app, /trust === "lost"/);
+  assert.match(app, /iconAnchor: plotFixIconAnchor\(plotFix\)/);
   assert.match(css, /\.plot-fix-marker\.estimated-position \.plot-fix-symbol/);
 });
