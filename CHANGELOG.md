@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.15
+
+- Make the observed-fix placeholders show symbol-free navigation coordinate
+  entry, for example `51N 15' 30.3''`, and keep the parser accepting that form.
+
 ## 0.5.14
 
 - Make observed-fix latitude and longitude inputs use the selected coordinate
