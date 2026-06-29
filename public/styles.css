@@ -510,8 +510,8 @@ button:active {
 
 .plot-fix-marker {
   position: relative;
-  width: 1px;
-  height: 1px;
+  width: 88px;
+  height: 64px;
   background: transparent;
   color: #0f172a;
   font-weight: 900;
@@ -522,8 +522,8 @@ button:active {
 .plot-fix-symbol {
   content: "";
   position: absolute;
-  left: 0;
-  top: 0;
+  left: 44px;
+  top: 44px;
   width: 20px;
   height: 20px;
   transform: translate(-50%, -50%);
@@ -546,8 +546,8 @@ button:active {
 
 .plot-fix-time {
   position: absolute;
-  left: 0;
-  bottom: 12px;
+  left: 44px;
+  top: 4px;
   transform: translateX(-50%);
   padding: 1px 5px;
   border-radius: 4px;

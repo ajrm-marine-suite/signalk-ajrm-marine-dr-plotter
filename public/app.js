@@ -971,9 +971,9 @@ function redrawPlotFixes() {
       icon: L.divIcon({
         className: `plot-fix-marker ${plotFixMarkerClass(plotFix)}`,
         html: `<span class="plot-fix-time">${escapeHtml(formatTime(plotFix.timestamp))}</span><span class="plot-fix-symbol"></span>`,
-        iconSize: [1, 1],
-        iconAnchor: [0, 0],
-        popupAnchor: [0, -36],
+        iconSize: [88, 64],
+        iconAnchor: [44, 44],
+        popupAnchor: [0, -44],
       }),
     });
     marker.bindPopup(plotFixPopupHtml(plotFix), { maxWidth: 320 });

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.17
+
+- Anchor plot-fix icons with an explicit fixed-size Leaflet icon box, so the
+  electronic-fix square centre dot is exactly on the plotted coordinate.
+
 ## 0.5.16
 
 - Force a breadcrumb point at the exact coordinate of each current-position DR
