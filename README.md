@@ -19,9 +19,10 @@ The plotter renders:
 - Operational dead-reckoning fallback from the GPS Integrity provider. This is
   normally hidden while it sits directly on top of accepted GPS, then appears
   when GPS is unavailable or the position separates.
-- Independent integrity dead reckoning from the GPS Integrity provider, with a
-  separate colour and uncertainty circle for spoof/drift testing.
-- Uncertainty circles that expand as confidence drops or each DR track ages.
+- Independent integrity dead reckoning from the GPS Integrity provider, shown as
+  a separate marker when it separates enough to matter for spoof/drift testing.
+- Operational uncertainty circles that expand as confidence drops or the active
+  DR track ages.
 - Single-arrow heading/STW vector.
 - Double-arrow COG/SOG vector.
 - Triple-arrow tide/current vector.

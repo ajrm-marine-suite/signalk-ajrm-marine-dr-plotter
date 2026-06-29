@@ -497,16 +497,6 @@ function renderIntegrity(state) {
   }
   if (shouldDrawIntegrityDr(state, gps, dr, integrityPosition)) {
     addPoint(integrityPosition, "integrity-dr", "IDR");
-    if (integrityDr.uncertaintyRadiusMeters) {
-      L.circle([integrityPosition.latitude, integrityPosition.longitude], {
-        radius: integrityDr.uncertaintyRadiusMeters,
-        color: "#f97316",
-        fillColor: "#f97316",
-        fillOpacity: 0.1,
-        weight: 2,
-        dashArray: "7 5",
-      }).addTo(overlayLayer);
-    }
   }
   if (dr) {
     drawVectors(dr, state.vectors || {});

@@ -138,6 +138,13 @@ test("web app includes Display-style GPS status LED", () => {
   assert.match(css, /\.ajrm-marine-gps-status-alert \.ajrm-marine-gps-status-led/);
 });
 
+test("web app hides the independent DR uncertainty circle", () => {
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+
+  assert.match(app, /addPoint\(integrityPosition, "integrity-dr", "IDR"\)/);
+  assert.doesNotMatch(app, /radius: integrityDr\.uncertaintyRadiusMeters/);
+});
+
 test("web app exposes manual plot-fix pruning", () => {
   const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
   const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");

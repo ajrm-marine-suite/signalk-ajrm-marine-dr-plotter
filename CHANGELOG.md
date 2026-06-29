@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.21
+
+- Hide the independent integrity DR uncertainty circle on the chart. The IDR
+  marker still appears when it has separated from the GPS/operational DR track,
+  but its growing spoof-check uncertainty no longer looks like a live GPS
+  uncertainty alarm while GPS is healthy.
+
 ## 0.5.20
 
 - Move GPS-lost and GPS-return plot-fix creation into the Signal K plugin so
