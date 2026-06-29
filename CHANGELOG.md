@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.13
+
+- Show tide/current in DR plot-fix popups as drift then set, matching the
+  speed/direction order used by STW/heading and SOG/COG rows.
+
 ## 0.5.12
 
 - Add a configurable latitude/longitude display format, defaulting to degrees,

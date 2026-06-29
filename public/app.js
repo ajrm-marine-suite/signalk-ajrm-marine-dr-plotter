@@ -979,7 +979,7 @@ function plotFixPopupHtml(plotFix) {
         ${popupRow("DR distance since GPS", formatDistance(plotFix.distanceFromLastTrustedFixMeters))}
         ${popupRow("STW / heading", `${formatKnots(plotFix.stwMps)} / ${formatDegrees(plotFix.headingTrueDegrees)}`)}
         ${popupRow("SOG / COG", `${formatKnots(plotFix.sogMps)} / ${formatDegrees(plotFix.cogTrueDegrees)}`)}
-        ${popupRow("Tide set / drift", `${formatDegrees(plotFix.currentSetTrueDegrees)} / ${formatKnots(plotFix.currentDriftMps)}`)}
+        ${popupRow("Tide drift / set", `${formatKnots(plotFix.currentDriftMps)} / ${formatDegrees(plotFix.currentSetTrueDegrees)}`)}
       </dl>
     </div>
   `;

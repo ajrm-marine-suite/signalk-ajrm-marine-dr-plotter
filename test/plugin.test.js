@@ -107,6 +107,7 @@ test("web app renders lost GPS plot fixes as estimated positions", () => {
   assert.match(app, /iconAnchor: \[0, 0\]/);
   assert.match(css, /\.plot-fix-marker\.estimated-position \.plot-fix-symbol/);
   assert.match(css, /transform: translate\(-50%, -50%\)/);
+  assert.match(app, /Tide drift \/ set/);
 });
 
 test("web app includes Display-style GPS status LED", () => {
