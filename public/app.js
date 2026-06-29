@@ -821,8 +821,8 @@ function createPlotFix(state, automatic, plotType = automatic ? "timed" : "manua
 }
 
 async function applyManualFix() {
-  const latitude = Number(elements.manualFixLatitude.value);
-  const longitude = Number(elements.manualFixLongitude.value);
+  const latitude = parseCoordinateInput(elements.manualFixLatitude.value, "latitude");
+  const longitude = parseCoordinateInput(elements.manualFixLongitude.value, "longitude");
   if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
     showToast("Enter a latitude between -90 and 90.", true);
     return;
@@ -858,6 +858,30 @@ async function applyManualFix() {
   }
 }
 
+function parseCoordinateInput(value, axis) {
+  const text = String(value || "").trim().toUpperCase();
+  if (!text) return null;
+  const hemisphere = text.match(/[NSEW]/)?.[0] || "";
+  if (axis === "latitude" && hemisphere && !["N", "S"].includes(hemisphere)) return null;
+  if (axis === "longitude" && hemisphere && !["E", "W"].includes(hemisphere)) return null;
+  const parts = text.match(/[-+]?\d+(?:\.\d+)?/g)?.map(Number) || [];
+  if (!parts.length || parts.some((part) => !Number.isFinite(part))) return null;
+  const explicitSign = parts[0] < 0 ? -1 : 1;
+  const hemisphereSign = ["S", "W"].includes(hemisphere) ? -1 : ["N", "E"].includes(hemisphere) ? 1 : null;
+  const sign = hemisphereSign ?? explicitSign;
+  const degrees = Math.abs(parts[0]);
+  const minutes = Math.abs(parts[1] ?? 0);
+  const seconds = Math.abs(parts[2] ?? 0);
+  if (minutes >= 60 || seconds >= 60) return null;
+  const decimal = sign * (degrees + minutes / 60 + seconds / 3600);
+  const limit = axis === "latitude" ? 90 : 180;
+  return Math.abs(decimal) <= limit ? decimal : null;
+}
+
+function formatCoordinateInput(value, positive, negative) {
+  return formatCoordinate(value, positive, negative);
+}
+
 function startManualFixPickMode() {
   if (!map) return;
   manualFixPickMode = true;
@@ -880,8 +904,8 @@ function handleMapClick(event) {
   const lat = Number(event.latlng?.lat);
   const lon = Number(event.latlng?.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-  elements.manualFixLatitude.value = lat.toFixed(6);
-  elements.manualFixLongitude.value = lon.toFixed(6);
+  elements.manualFixLatitude.value = formatCoordinateInput(lat, "N", "S");
+  elements.manualFixLongitude.value = formatCoordinateInput(lon, "E", "W");
   stopManualFixPickMode();
   elements.cursorPosition.textContent = `Observed fix ${formatLatLon(event.latlng)}`;
   showToast("Observed fix position copied from chart.");

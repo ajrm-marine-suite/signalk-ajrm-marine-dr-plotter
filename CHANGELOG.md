@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.14
+
+- Make observed-fix latitude and longitude inputs use the selected coordinate
+  display format, defaulting to DMS, while still accepting pasted decimal
+  degrees.
+
 ## 0.5.13
 
 - Show tide/current in DR plot-fix popups as drift then set, matching the

@@ -166,11 +166,16 @@ test("web app can submit observed fixes to GPS Integrity", () => {
 
   assert.match(html, /id="manualFixLatitude"/);
   assert.match(html, /id="pickManualFixFromCursor"/);
+  assert.match(html, /type="text" inputmode="text"/);
+  assert.match(html, /56° 12' 40\.4/);
   assert.match(html, /Set observed fix/);
   assert.match(app, /gpsIntegrityApiBase/);
   assert.match(app, /function applyManualFix/);
+  assert.match(app, /function parseCoordinateInput/);
+  assert.match(app, /function formatCoordinateInput/);
   assert.match(app, /function startManualFixPickMode/);
   assert.match(app, /function handleMapClick/);
+  assert.match(app, /formatCoordinateInput\(lat, "N", "S"\)/);
   assert.match(app, /observed-fix/);
   assert.match(css, /\.plot-fix-marker\.observed-fix/);
   assert.match(css, /\.manual-fix-pick-mode/);
