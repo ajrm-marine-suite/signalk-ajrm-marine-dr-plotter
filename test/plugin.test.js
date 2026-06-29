@@ -86,15 +86,22 @@ test("normalizes persisted plot fixes", () => {
       position: { latitude: 56.21, longitude: -5.56 },
       note: "visual bearings",
     },
+    {
+      id: "gps-return",
+      timestamp: "2026-06-29T10:06:00.000Z",
+      plotType: "gps-return",
+      position: { latitude: 56.22, longitude: -5.57 },
+    },
   ]);
 
-  assert.equal(fixes.length, 2);
+  assert.equal(fixes.length, 3);
   assert.equal(fixes[0].id, "lost-fix");
   assert.equal(fixes[0].plotType, "gps-lost");
   assert.equal(fixes[0].position.latitude, 56.2);
   assert.equal(fixes[0].distanceFromLastTrustedFixMeters, 1234);
   assert.equal(fixes[1].plotType, "observed-fix");
   assert.equal(fixes[1].note, "visual bearings");
+  assert.equal(fixes[2].plotType, "gps-return");
 });
 
 test("web app renders lost GPS plot fixes as estimated positions", () => {
@@ -144,6 +151,15 @@ test("web app forces breadcrumb points at plotted electronic fixes", () => {
   assert.match(app, /updateOperationalTrack\(normalized\.position, normalized\.timestamp, true\)/);
   assert.match(app, /function updateOperationalTrack\(position, timestamp, force = false\)/);
   assert.match(app, /!force && last && distanceMeters\(last, position\) < 2/);
+});
+
+test("web app plots a GPS fix immediately when GPS returns", () => {
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+
+  assert.match(app, /lastTrustState === "lost" && state\?\.acceptedGps === true/);
+  assert.match(app, /createPlotFix\(state, true, "gps-return"\)/);
+  assert.match(app, /GPS returned\. Plotted GPS fix/);
+  assert.match(app, /if \(plotFix\.plotType === "gps-return"\) return "GPS fix"/);
 });
 
 test("web app shows live cursor latitude and longitude", () => {

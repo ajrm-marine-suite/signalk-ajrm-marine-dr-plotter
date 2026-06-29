@@ -750,7 +750,7 @@ function finiteOrNull(value) {
 }
 
 function normalizePlotType(value) {
-  return ["manual", "timed", "gps-lost", "observed-fix"].includes(value) ? value : null;
+  return ["manual", "timed", "gps-lost", "gps-return", "observed-fix"].includes(value) ? value : null;
 }
 
 function maybeAddAutomaticPlotFix(state) {
@@ -771,6 +771,12 @@ function maybeAddGpsLostPlotFix(state) {
   if (!plotFixesLoaded) return;
   const trust = state?.trust || "unknown";
   if (trust !== "lost") {
+    if (lastTrustState === "lost" && state?.acceptedGps === true && state?.gps?.position) {
+      const plotFix = createPlotFix(state, true, "gps-return");
+      if (plotFix && addPlotFix(plotFix, false)) {
+        showToast(`GPS returned. Plotted GPS fix ${formatTime(plotFix.timestamp)}.`);
+      }
+    }
     if (trust !== lastTrustState) gpsLostPlotFixRecordedFor = null;
     lastTrustState = trust;
     return;
@@ -1025,6 +1031,7 @@ function plotFixPopupHtml(plotFix) {
 
 function plotFixTitle(plotFix) {
   if (plotFix.trust === "lost" || plotFix.plotType === "gps-lost") return "Estimated position";
+  if (plotFix.plotType === "gps-return") return "GPS fix";
   if (plotFix.plotType === "observed-fix") return "Observed fix";
   if (plotFix.plotType === "timed" || plotFix.automatic) return "Timed plot fix";
   return "Manual plot fix";

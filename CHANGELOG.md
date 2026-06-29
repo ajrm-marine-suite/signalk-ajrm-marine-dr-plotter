@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.19
+
+- Add an immediate GPS-return plot fix when GPS recovers after being lost, so
+  the chart records the exact position where navigation returned to a trusted
+  electronic fix.
+
 ## 0.5.18
 
 - Split DR plot-fix symbols and time labels into separate Leaflet markers so
