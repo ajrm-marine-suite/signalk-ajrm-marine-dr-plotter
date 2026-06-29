@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.18
+
+- Split DR plot-fix symbols and time labels into separate Leaflet markers so
+  the symbol marker can be anchored directly on the plotted coordinate without
+  label geometry shifting the fix away from the breadcrumb track.
+
 ## 0.5.17
 
 - Anchor plot-fix icons with an explicit fixed-size Leaflet icon box, so the

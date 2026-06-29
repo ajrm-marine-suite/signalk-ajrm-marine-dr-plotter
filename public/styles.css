@@ -508,11 +508,10 @@ button:active {
   background: #f97316;
 }
 
-.plot-fix-marker {
-  position: relative;
-  width: 88px;
-  height: 64px;
+.plot-fix-symbol-marker,
+.plot-fix-label-marker {
   background: transparent;
+  border: 0;
   color: #0f172a;
   font-weight: 900;
   font-size: 0.78rem;
@@ -522,8 +521,8 @@ button:active {
 .plot-fix-symbol {
   content: "";
   position: absolute;
-  left: 44px;
-  top: 44px;
+  left: 14px;
+  top: 14px;
   width: 20px;
   height: 20px;
   transform: translate(-50%, -50%);
@@ -546,8 +545,8 @@ button:active {
 
 .plot-fix-time {
   position: absolute;
-  left: 44px;
-  top: 4px;
+  left: 37px;
+  top: 0;
   transform: translateX(-50%);
   padding: 1px 5px;
   border-radius: 4px;
@@ -555,20 +554,20 @@ button:active {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
 }
 
-.plot-fix-marker.electronic-fix .plot-fix-symbol {
+.plot-fix-symbol-marker.electronic-fix .plot-fix-symbol {
   border-radius: 2px;
 }
 
-.plot-fix-marker.observed-fix .plot-fix-symbol {
+.plot-fix-symbol-marker.observed-fix .plot-fix-symbol {
   border-color: #16a34a;
   border-radius: 50%;
 }
 
-.plot-fix-marker.observed-fix .plot-fix-symbol::after {
+.plot-fix-symbol-marker.observed-fix .plot-fix-symbol::after {
   background: #14532d;
 }
 
-.plot-fix-marker.estimated-position .plot-fix-symbol {
+.plot-fix-symbol-marker.estimated-position .plot-fix-symbol {
   width: 0;
   height: 0;
   border-left: 12px solid transparent;
@@ -580,7 +579,7 @@ button:active {
   transform: translate(-50%, -64%);
 }
 
-.plot-fix-marker.estimated-position .plot-fix-symbol::before {
+.plot-fix-symbol-marker.estimated-position .plot-fix-symbol::before {
   content: "";
   position: absolute;
   left: -8px;
@@ -592,32 +591,32 @@ button:active {
   border-bottom: 15px solid rgba(255, 255, 255, 0.96);
 }
 
-.plot-fix-marker.estimated-position .plot-fix-symbol::after {
+.plot-fix-symbol-marker.estimated-position .plot-fix-symbol::after {
   top: 14px;
   z-index: 1;
 }
 
-.plot-fix-marker.gps-lost,
-.plot-fix-marker.estimated-position {
+.plot-fix-symbol-marker.gps-lost,
+.plot-fix-symbol-marker.estimated-position {
   color: #991b1b;
 }
 
-.plot-fix-marker.gps-lost.electronic-fix .plot-fix-symbol {
+.plot-fix-symbol-marker.gps-lost.electronic-fix .plot-fix-symbol {
   border-color: #dc2626;
 }
 
-.plot-fix-marker.estimated-position .plot-fix-symbol {
+.plot-fix-symbol-marker.estimated-position .plot-fix-symbol {
   border-left-color: transparent;
   border-right-color: transparent;
   border-bottom-color: #dc2626;
 }
 
-.plot-fix-marker.gps-lost .plot-fix-symbol::after,
-.plot-fix-marker.estimated-position .plot-fix-symbol::after {
+.plot-fix-symbol-marker.gps-lost .plot-fix-symbol::after,
+.plot-fix-symbol-marker.estimated-position .plot-fix-symbol::after {
   background: #dc2626;
 }
 
-.plot-fix-marker.manual.electronic-fix .plot-fix-symbol {
+.plot-fix-symbol-marker.manual.electronic-fix .plot-fix-symbol {
   border-color: #2563eb;
 }
 

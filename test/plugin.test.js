@@ -103,11 +103,13 @@ test("web app renders lost GPS plot fixes as estimated positions", () => {
 
   assert.match(app, /estimated-position/);
   assert.match(app, /trust === "lost"/);
-  assert.match(app, /iconSize: \[88, 64\]/);
-  assert.match(app, /iconAnchor: \[44, 44\]/);
-  assert.match(css, /\.plot-fix-marker\.estimated-position \.plot-fix-symbol/);
-  assert.match(css, /left: 44px/);
-  assert.match(css, /top: 44px/);
+  assert.match(app, /className: `plot-fix-symbol-marker/);
+  assert.match(app, /className: "plot-fix-label-marker"/);
+  assert.match(app, /iconSize: \[28, 28\]/);
+  assert.match(app, /iconAnchor: \[14, 14\]/);
+  assert.match(css, /\.plot-fix-symbol-marker\.estimated-position \.plot-fix-symbol/);
+  assert.match(css, /left: 14px/);
+  assert.match(css, /top: 14px/);
   assert.match(css, /transform: translate\(-50%, -50%\)/);
   assert.match(app, /Tide drift \/ set/);
 });
@@ -189,6 +191,6 @@ test("web app can submit observed fixes to GPS Integrity", () => {
   assert.match(app, /function handleMapClick/);
   assert.match(app, /formatCoordinateInput\(lat, "N", "S"\)/);
   assert.match(app, /observed-fix/);
-  assert.match(css, /\.plot-fix-marker\.observed-fix/);
+  assert.match(css, /\.plot-fix-symbol-marker\.observed-fix/);
   assert.match(css, /\.manual-fix-pick-mode/);
 });

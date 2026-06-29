@@ -967,17 +967,28 @@ function redrawPlotFixes() {
   if (!plotFixLayer) return;
   plotFixLayer.clearLayers();
   for (const plotFix of plotFixes) {
-    const marker = L.marker([plotFix.position.latitude, plotFix.position.longitude], {
+    const latlng = [plotFix.position.latitude, plotFix.position.longitude];
+    const marker = L.marker(latlng, {
       icon: L.divIcon({
-        className: `plot-fix-marker ${plotFixMarkerClass(plotFix)}`,
-        html: `<span class="plot-fix-time">${escapeHtml(formatTime(plotFix.timestamp))}</span><span class="plot-fix-symbol"></span>`,
-        iconSize: [88, 64],
-        iconAnchor: [44, 44],
-        popupAnchor: [0, -44],
+        className: `plot-fix-symbol-marker ${plotFixMarkerClass(plotFix)}`,
+        html: `<span class="plot-fix-symbol"></span>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -18],
       }),
     });
     marker.bindPopup(plotFixPopupHtml(plotFix), { maxWidth: 320 });
     marker.addTo(plotFixLayer);
+    L.marker(latlng, {
+      interactive: false,
+      keyboard: false,
+      icon: L.divIcon({
+        className: "plot-fix-label-marker",
+        html: `<span class="plot-fix-time">${escapeHtml(formatTime(plotFix.timestamp))}</span>`,
+        iconSize: [74, 24],
+        iconAnchor: [37, 38],
+      }),
+    }).addTo(plotFixLayer);
   }
   keepChartLayersOnTop();
 }
