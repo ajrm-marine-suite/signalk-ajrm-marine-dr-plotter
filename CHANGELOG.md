@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.10
+
+- Add a bottom-right cursor readout showing live chart latitude and longitude.
+- Add a debugging **Clear all plots** control that clears both the breadcrumb
+  track and plotted fixes.
+
 ## 0.5.9
 
 - Anchor plotted fix markers directly on the plotted position dot so labels and

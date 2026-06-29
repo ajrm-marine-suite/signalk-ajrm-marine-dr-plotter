@@ -20,6 +20,7 @@ const elements = {
   plotInterval: document.querySelector("#plotInterval"),
   plotNowDrawer: document.querySelector("#plotNowDrawer"),
   clearPlots: document.querySelector("#clearPlots"),
+  clearAllPlots: document.querySelector("#clearAllPlots"),
   prunePlotFixesAge: document.querySelector("#prunePlotFixesAge"),
   prunePlotFixes: document.querySelector("#prunePlotFixes"),
   plotStatus: document.querySelector("#plotStatus"),
@@ -28,6 +29,7 @@ const elements = {
   autoCharts: document.querySelector("#checkAutoCharts"),
   openSeaMap: document.querySelector("#checkOpenSeaMap"),
   toast: document.querySelector("#toast"),
+  cursorPosition: document.querySelector("#cursorPosition"),
 };
 
 let map;
@@ -137,6 +139,8 @@ function initMap(defaults = {}) {
   setOverlay(seamarkLayer, localStorage.getItem("ajrmMarineDrPlotterOpenSeaMap") !== "false", "ajrmMarineDrPlotterOpenSeaMap");
   map.on("dragstart", pauseMapFollowFromUserAction);
   map.on("moveend zoomend", updateAutoChart);
+  map.on("mousemove", updateCursorPosition);
+  map.on("mouseout", clearCursorPosition);
   updateControlButtonStates();
   loadChartResources();
 }
@@ -178,6 +182,25 @@ function setOverlay(layer, enabled, storageKey) {
   if (layer === seamarkLayer) elements.openSeaMap.checked = enabled;
   updateAutoChart();
   keepChartLayersOnTop();
+}
+
+function updateCursorPosition(event) {
+  elements.cursorPosition.textContent = `Cursor ${formatLatLon(event.latlng)}`;
+}
+
+function clearCursorPosition() {
+  elements.cursorPosition.textContent = "Cursor --";
+}
+
+function formatLatLon(latlng) {
+  const lat = Number(latlng?.lat);
+  const lon = Number(latlng?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "--";
+  return `${formatHemisphere(lat, "N", "S")} ${formatHemisphere(lon, "E", "W")}`;
+}
+
+function formatHemisphere(value, positive, negative) {
+  return `${Math.abs(value).toFixed(6)}°${value >= 0 ? positive : negative}`;
 }
 
 async function setAutoChartsEnabled(enabled) {
@@ -782,6 +805,14 @@ function clearPlotFixes() {
   showToast("Plot fixes cleared.");
 }
 
+function clearAllPlots() {
+  operationalTrack = [];
+  saveOperationalTrack();
+  redrawOperationalTrack();
+  clearPlotFixes();
+  showToast("All DR plots cleared.");
+}
+
 function pruneOldPlotFixes() {
   const days = Number(elements.prunePlotFixesAge.value);
   if (!Number.isFinite(days) || days <= 0) return;
@@ -1064,6 +1095,7 @@ elements.centreOwnship.addEventListener("click", recenterOnOwnship);
 elements.plotNow.addEventListener("click", () => addPlotFix(createPlotFix(latestStatus?.ajrmMarineGpsIntegrity, false, "manual")));
 elements.plotNowDrawer.addEventListener("click", () => addPlotFix(createPlotFix(latestStatus?.ajrmMarineGpsIntegrity, false, "manual")));
 elements.clearPlots.addEventListener("click", clearPlotFixes);
+elements.clearAllPlots.addEventListener("click", clearAllPlots);
 elements.prunePlotFixes.addEventListener("click", pruneOldPlotFixes);
 elements.plotInterval.value = localStorage.getItem(plotFixIntervalStorageKey) || "10";
 elements.plotInterval.addEventListener("change", () => {

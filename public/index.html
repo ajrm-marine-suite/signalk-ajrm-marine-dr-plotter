@@ -84,7 +84,8 @@
         </label>
         <div class="plot-actions">
           <button id="plotNowDrawer" type="button">Plot now</button>
-          <button id="clearPlots" type="button">Clear plots</button>
+          <button id="clearPlots" type="button">Clear fixes</button>
+          <button id="clearAllPlots" type="button">Clear all plots</button>
         </div>
         <label class="field-row">
           <span>Prune</span>
@@ -135,6 +136,7 @@
     </aside>
 
     <div id="toast" class="toast" role="status"></div>
+    <div id="cursorPosition" class="cursor-position" aria-live="polite">Cursor --</div>
     <script src="./leaflet.js"></script>
     <script src="./protomaps-leaflet.js"></script>
     <script src="./app.js"></script>

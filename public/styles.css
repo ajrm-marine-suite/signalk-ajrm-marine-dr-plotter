@@ -16,6 +16,24 @@ body {
   background: #dbe7ef;
 }
 
+.cursor-position {
+  position: fixed;
+  right: 14px;
+  bottom: 24px;
+  z-index: 850;
+  padding: 7px 10px;
+  border: 1px solid rgba(96, 117, 137, 0.42);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #132536;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  font-weight: 800;
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.16);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 .topbar {
   position: fixed;
   z-index: 1000;
@@ -322,7 +340,7 @@ button:active {
 
 .plot-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 8px;
   margin-top: 10px;
 }

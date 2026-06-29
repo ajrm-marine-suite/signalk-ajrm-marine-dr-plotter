@@ -123,3 +123,23 @@ test("web app exposes manual plot-fix pruning", () => {
   assert.match(app, /function pruneOldPlotFixes/);
   assert.match(app, /savePlotFixesServer\(\)/);
 });
+
+test("web app shows live cursor latitude and longitude", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "..", "public", "styles.css"), "utf8");
+
+  assert.match(html, /id="cursorPosition"/);
+  assert.match(app, /map\.on\("mousemove", updateCursorPosition\)/);
+  assert.match(app, /function formatLatLon/);
+  assert.match(css, /\.cursor-position/);
+});
+
+test("web app exposes a debugging clear-all-plots control", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+
+  assert.match(html, /id="clearAllPlots"/);
+  assert.match(app, /function clearAllPlots/);
+  assert.match(app, /operationalTrack = \[\]/);
+});
