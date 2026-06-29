@@ -49,6 +49,14 @@ module.exports = function ajrmMarineDrPlotter(app) {
         minimum: 1,
         maximum: 18,
       },
+      coordinateFormat: {
+        type: "string",
+        title: "Latitude/longitude display format",
+        description: "Controls cursor and popup coordinate display. Internal storage remains decimal degrees.",
+        default: "dms",
+        enum: ["dms", "degrees-minutes", "decimal"],
+        enumNames: ["Degrees minutes seconds", "Degrees decimal minutes", "Decimal degrees"],
+      },
     },
   };
 
@@ -137,6 +145,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
       version: packageInfo.version,
       enabled: options.enabled,
       refreshIntervalMs: options.refreshIntervalMs,
+      coordinateFormat: options.coordinateFormat,
       startedAt,
       noAisTargets: true,
       defaults: {
@@ -254,7 +263,12 @@ function normalizeOptions(value = {}) {
     defaultLatitude: finite(value.defaultLatitude, 56.21),
     defaultLongitude: finite(value.defaultLongitude, -5.56),
     defaultZoom: Number.isFinite(defaultZoom) ? Math.min(18, Math.max(1, defaultZoom)) : 11,
+    coordinateFormat: normalizeCoordinateFormat(value.coordinateFormat),
   };
+}
+
+function normalizeCoordinateFormat(value) {
+  return ["dms", "degrees-minutes", "decimal"].includes(value) ? value : "dms";
 }
 
 function finite(value, fallback) {

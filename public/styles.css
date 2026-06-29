@@ -16,6 +16,13 @@ body {
   background: #dbe7ef;
 }
 
+.map.manual-fix-pick-mode,
+.map.manual-fix-pick-mode .leaflet-container,
+.map.manual-fix-pick-mode .leaflet-grab,
+.map.manual-fix-pick-mode .leaflet-interactive {
+  cursor: default !important;
+}
+
 .cursor-position {
   position: fixed;
   right: 14px;
@@ -387,6 +394,10 @@ button:active {
 
 .manual-fix-panel button {
   width: 100%;
+}
+
+.manual-fix-panel button + button {
+  margin-top: 0.55rem;
 }
 
 .plot-status {

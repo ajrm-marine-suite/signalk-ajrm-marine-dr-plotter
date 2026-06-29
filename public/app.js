@@ -25,6 +25,7 @@ const elements = {
   manualFixLatitude: document.querySelector("#manualFixLatitude"),
   manualFixLongitude: document.querySelector("#manualFixLongitude"),
   manualFixNote: document.querySelector("#manualFixNote"),
+  pickManualFixFromCursor: document.querySelector("#pickManualFixFromCursor"),
   applyManualFix: document.querySelector("#applyManualFix"),
   prunePlotFixesAge: document.querySelector("#prunePlotFixesAge"),
   prunePlotFixes: document.querySelector("#prunePlotFixes"),
@@ -61,6 +62,8 @@ let plotFixesLoaded = false;
 let plotFixSavePending = false;
 let lastTrustState = null;
 let gpsLostPlotFixRecordedFor = null;
+let coordinateFormat = "dms";
+let manualFixPickMode = false;
 const maxTrackPoints = 7200;
 const maxPlotFixes = 1000;
 const trackStorageKey = "ajrmMarineDrPlotterOperationalTrack";
@@ -146,6 +149,7 @@ function initMap(defaults = {}) {
   map.on("moveend zoomend", updateAutoChart);
   map.on("mousemove", updateCursorPosition);
   map.on("mouseout", clearCursorPosition);
+  map.on("click", handleMapClick);
   updateControlButtonStates();
   loadChartResources();
 }
@@ -190,7 +194,8 @@ function setOverlay(layer, enabled, storageKey) {
 }
 
 function updateCursorPosition(event) {
-  elements.cursorPosition.textContent = `Cursor ${formatLatLon(event.latlng)}`;
+  const prefix = manualFixPickMode ? "Pick fix" : "Cursor";
+  elements.cursorPosition.textContent = `${prefix} ${formatLatLon(event.latlng)}${cursorRangeText(event.latlng)}`;
 }
 
 function clearCursorPosition() {
@@ -201,11 +206,39 @@ function formatLatLon(latlng) {
   const lat = Number(latlng?.lat);
   const lon = Number(latlng?.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "--";
-  return `${formatHemisphere(lat, "N", "S")} ${formatHemisphere(lon, "E", "W")}`;
+  return `${formatCoordinate(lat, "N", "S")} ${formatCoordinate(lon, "E", "W")}`;
 }
 
-function formatHemisphere(value, positive, negative) {
-  return `${Math.abs(value).toFixed(6)}°${value >= 0 ? positive : negative}`;
+function formatCoordinate(value, positive, negative) {
+  const absolute = Math.abs(Number(value));
+  if (!Number.isFinite(absolute)) return "n/a";
+  const hemisphere = value >= 0 ? positive : negative;
+  if (coordinateFormat === "decimal") return `${absolute.toFixed(6)}°${hemisphere}`;
+  const degrees = Math.floor(absolute);
+  const minutesTotal = (absolute - degrees) * 60;
+  if (coordinateFormat === "degrees-minutes") {
+    return `${degrees}° ${minutesTotal.toFixed(3)}'${hemisphere}`;
+  }
+  const minutes = Math.floor(minutesTotal);
+  const seconds = (minutesTotal - minutes) * 60;
+  return `${degrees}° ${String(minutes).padStart(2, "0")}' ${seconds.toFixed(1)}"${hemisphere}`;
+}
+
+function cursorRangeText(latlng) {
+  const currentPosition = ownshipFollowPosition(latestStatus?.ajrmMarineGpsIntegrity);
+  const cursorPosition = leafletLatLngToPosition(latlng);
+  if (!currentPosition || !cursorPosition) return "";
+  const distance = distanceMeters(currentPosition, cursorPosition);
+  const bearing = bearingDegrees(currentPosition, cursorPosition);
+  if (!Number.isFinite(distance) || !Number.isFinite(bearing)) return "";
+  return ` | Range ${formatDistance(distance)} / ${formatDegrees(bearing)}`;
+}
+
+function leafletLatLngToPosition(latlng) {
+  const latitude = Number(latlng?.lat);
+  const longitude = Number(latlng?.lng);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return { latitude, longitude };
 }
 
 async function setAutoChartsEnabled(enabled) {
@@ -825,6 +858,35 @@ async function applyManualFix() {
   }
 }
 
+function startManualFixPickMode() {
+  if (!map) return;
+  manualFixPickMode = true;
+  elements.map.classList.add("manual-fix-pick-mode");
+  elements.pickManualFixFromCursor.disabled = true;
+  elements.pickManualFixFromCursor.textContent = "Click chart...";
+  elements.cursorPosition.textContent = "Pick fix: click chart position";
+  showToast("Click the chart position for the observed fix.");
+}
+
+function stopManualFixPickMode() {
+  manualFixPickMode = false;
+  elements.map.classList.remove("manual-fix-pick-mode");
+  elements.pickManualFixFromCursor.disabled = false;
+  elements.pickManualFixFromCursor.textContent = "Get from cursor";
+}
+
+function handleMapClick(event) {
+  if (!manualFixPickMode) return;
+  const lat = Number(event.latlng?.lat);
+  const lon = Number(event.latlng?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  elements.manualFixLatitude.value = lat.toFixed(6);
+  elements.manualFixLongitude.value = lon.toFixed(6);
+  stopManualFixPickMode();
+  elements.cursorPosition.textContent = `Observed fix ${formatLatLon(event.latlng)}`;
+  showToast("Observed fix position copied from chart.");
+}
+
 function addPlotFix(plotFix, announce = true) {
   const normalized = normalizePlotFix(plotFix);
   if (!normalized) {
@@ -1013,6 +1075,15 @@ function distanceMeters(a, b) {
   return 2 * radius * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+function bearingDegrees(a, b) {
+  const lat1 = a.latitude * Math.PI / 180;
+  const lat2 = b.latitude * Math.PI / 180;
+  const dLon = (b.longitude - a.longitude) * Math.PI / 180;
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
 function radToDegrees(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return null;
@@ -1034,7 +1105,7 @@ function formatAge(seconds) {
 
 function formatPosition(position) {
   if (!position) return "n/a";
-  return `${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}`;
+  return formatLatLon({ lat: position.latitude, lng: position.longitude });
 }
 
 function formatMeters(value) {
@@ -1124,6 +1195,7 @@ function classifyGpsStatus(state) {
 async function refreshStatus() {
   try {
     latestStatus = await requestJson(`${apiBase}/status`);
+    coordinateFormat = latestStatus.coordinateFormat || "dms";
     if (!map) initMap(latestStatus.defaults);
     else syncOperationalTrackSession(latestStatus.startedAt);
     renderIntegrity(latestStatus.ajrmMarineGpsIntegrity);
@@ -1146,7 +1218,11 @@ elements.plotNow.addEventListener("click", () => addPlotFix(createPlotFix(latest
 elements.plotNowDrawer.addEventListener("click", () => addPlotFix(createPlotFix(latestStatus?.ajrmMarineGpsIntegrity, false, "manual")));
 elements.clearPlots.addEventListener("click", clearPlotFixes);
 elements.clearAllPlots.addEventListener("click", clearAllPlots);
+elements.pickManualFixFromCursor.addEventListener("click", startManualFixPickMode);
 elements.applyManualFix.addEventListener("click", applyManualFix);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && manualFixPickMode) stopManualFixPickMode();
+});
 elements.prunePlotFixes.addEventListener("click", pruneOldPlotFixes);
 elements.plotInterval.value = localStorage.getItem(plotFixIntervalStorageKey) || "10";
 elements.plotInterval.addEventListener("change", () => {

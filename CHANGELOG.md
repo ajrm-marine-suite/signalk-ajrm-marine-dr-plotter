@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.12
+
+- Add a configurable latitude/longitude display format, defaulting to degrees,
+  minutes, and seconds.
+- Add **Get from cursor** for observed fixes: click the button, then click the
+  chart to copy that position into the observed-fix fields.
+- Show range and bearing from the current DR/GPS position to the cursor in the
+  bottom-right coordinate readout.
+
 ## 0.5.11
 
 - Add an **Observed fix** control for manually entering a latitude/longitude

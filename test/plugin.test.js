@@ -19,11 +19,14 @@ test("normalizes configured defaults", () => {
     defaultLatitude: "57.1",
     defaultLongitude: "-6.2",
     defaultZoom: 99,
+    coordinateFormat: "decimal",
   });
   assert.equal(options.refreshIntervalMs, 500);
   assert.equal(options.defaultLatitude, 57.1);
   assert.equal(options.defaultLongitude, -6.2);
   assert.equal(options.defaultZoom, 18);
+  assert.equal(options.coordinateFormat, "decimal");
+  assert.equal(pluginFactory._private.normalizeOptions({ coordinateFormat: "bad" }).coordinateFormat, "dms");
 });
 
 test("status declares that AIS targets are intentionally absent", () => {
@@ -46,6 +49,7 @@ test("status declares that AIS targets are intentionally absent", () => {
     delete() {},
   });
   assert.equal(json.noAisTargets, true);
+  assert.equal(json.coordinateFormat, "dms");
   assert.match(json.startedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.deepEqual(json.ajrmMarineGpsIntegrity, { trust: "normal" });
 });
@@ -137,6 +141,11 @@ test("web app shows live cursor latitude and longitude", () => {
   assert.match(html, /id="cursorPosition"/);
   assert.match(app, /map\.on\("mousemove", updateCursorPosition\)/);
   assert.match(app, /function formatLatLon/);
+  assert.match(app, /function formatCoordinate/);
+  assert.match(app, /function cursorRangeText/);
+  assert.match(app, /function bearingDegrees/);
+  assert.match(app, /Range/);
+  assert.match(app, /coordinateFormat = "dms"/);
   assert.match(css, /\.cursor-position/);
 });
 
@@ -155,9 +164,13 @@ test("web app can submit observed fixes to GPS Integrity", () => {
   const css = fs.readFileSync(path.join(__dirname, "..", "public", "styles.css"), "utf8");
 
   assert.match(html, /id="manualFixLatitude"/);
+  assert.match(html, /id="pickManualFixFromCursor"/);
   assert.match(html, /Set observed fix/);
   assert.match(app, /gpsIntegrityApiBase/);
   assert.match(app, /function applyManualFix/);
+  assert.match(app, /function startManualFixPickMode/);
+  assert.match(app, /function handleMapClick/);
   assert.match(app, /observed-fix/);
   assert.match(css, /\.plot-fix-marker\.observed-fix/);
+  assert.match(css, /\.manual-fix-pick-mode/);
 });
