@@ -6,6 +6,8 @@ const elements = {
   toggleCharts: document.querySelector("#toggleCharts"),
   centreOwnship: document.querySelector("#centreOwnship"),
   plotNow: document.querySelector("#plotNow"),
+  gpsStatusIndicator: document.querySelector("#gpsStatusIndicator"),
+  gpsStatusText: document.querySelector("#gpsStatusText"),
   statusDrawer: document.querySelector("#statusDrawer"),
   chartDrawer: document.querySelector("#chartDrawer"),
   statusLine: document.querySelector("#statusLine"),
@@ -400,6 +402,7 @@ function keepChartLayersOnTop() {
 
 function renderIntegrity(state) {
   overlayLayer.clearLayers();
+  updateGpsStatusIndicator(state);
   const trust = state?.trust || "unknown";
   elements.trustBadge.textContent = trust.toUpperCase();
   elements.trustBadge.dataset.trust = trust;
@@ -976,14 +979,61 @@ function colorForTrust(trust) {
   return "#dc2626";
 }
 
+function updateGpsStatusIndicator(state) {
+  const status = classifyGpsStatus(state);
+  elements.gpsStatusIndicator.classList.remove(
+    "ajrm-marine-gps-status-ok",
+    "ajrm-marine-gps-status-alert",
+    "ajrm-marine-gps-status-unknown",
+  );
+  elements.gpsStatusIndicator.classList.add(`ajrm-marine-gps-status-${status.kind}`);
+  elements.gpsStatusText.textContent = status.label;
+  elements.gpsStatusIndicator.title = status.title;
+}
+
+function classifyGpsStatus(state) {
+  const gps = state?.gps || {};
+  const trust = String(state?.trust || "").toLowerCase();
+  if (gps.fixValid === false || trust === "lost" || trust === "unavailable") {
+    return {
+      kind: "alert",
+      label: "GPS LOST",
+      title: "GPS position is missing or invalid",
+    };
+  }
+  if (
+    gps.fixValid === true &&
+    ["normal", "trusted", "ok", "accepted"].includes(trust)
+  ) {
+    return {
+      kind: "ok",
+      label: "GPS OK",
+      title: "GPS received OK",
+    };
+  }
+  if (trust) {
+    return {
+      kind: "alert",
+      label: "GPS ALERT",
+      title: `GPS integrity state: ${trust}`,
+    };
+  }
+  return {
+    kind: "unknown",
+    label: "GPS ?",
+    title: "GPS status unknown",
+  };
+}
+
 async function refreshStatus() {
   try {
     latestStatus = await requestJson(`${apiBase}/status`);
     if (!map) initMap(latestStatus.defaults);
     else syncOperationalTrackSession(latestStatus.startedAt);
-  renderIntegrity(latestStatus.ajrmMarineGpsIntegrity);
+    renderIntegrity(latestStatus.ajrmMarineGpsIntegrity);
   } catch (error) {
     showToast(error.message || "Unable to refresh DR state", true);
+    updateGpsStatusIndicator(null);
   }
 }
 

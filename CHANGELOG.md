@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.8
+
+- Add the same GPS OK/lost status LED used by AJRM Marine Display to the DR
+  Plotter chart controls.
+
 ## 0.5.7
 
 - Anchor plotted fix symbols on their centre dot so Estimated Position and

@@ -19,6 +19,16 @@
         </div>
       </div>
       <div class="top-actions">
+        <div
+          id="gpsStatusIndicator"
+          class="ajrm-marine-gps-status ajrm-marine-gps-status-unknown"
+          role="status"
+          aria-live="polite"
+          title="GPS status unknown"
+        >
+          <span class="ajrm-marine-gps-status-led" aria-hidden="true"></span>
+          <span id="gpsStatusText">GPS ?</span>
+        </div>
         <button id="toggleStatus" class="map-control-button" type="button" title="Status" aria-label="Status" aria-pressed="true">
           <span class="control-icon status-icon" aria-hidden="true"></span>
         </button>

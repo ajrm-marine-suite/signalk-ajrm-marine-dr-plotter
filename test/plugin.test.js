@@ -97,3 +97,17 @@ test("web app renders lost GPS plot fixes as estimated positions", () => {
   assert.match(app, /iconAnchor: plotFixIconAnchor\(plotFix\)/);
   assert.match(css, /\.plot-fix-marker\.estimated-position \.plot-fix-symbol/);
 });
+
+test("web app includes Display-style GPS status LED", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "..", "public", "styles.css"), "utf8");
+
+  assert.match(html, /id="gpsStatusIndicator"/);
+  assert.match(html, /ajrm-marine-gps-status-led/);
+  assert.match(app, /function updateGpsStatusIndicator/);
+  assert.match(app, /GPS OK/);
+  assert.match(app, /GPS LOST/);
+  assert.match(css, /\.ajrm-marine-gps-status-ok \.ajrm-marine-gps-status-led/);
+  assert.match(css, /\.ajrm-marine-gps-status-alert \.ajrm-marine-gps-status-led/);
+});
