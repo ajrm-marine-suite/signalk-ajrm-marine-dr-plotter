@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.20
+
+- Move GPS-lost and GPS-return plot-fix creation into the Signal K plugin so
+  those navigator fixes are recorded even when the browser reloads, is stale, or
+  is not the component that first sees the GPS transition.
+- Add a resource-style `fixes` representation for persisted navigator fixes,
+  using GeoJSON point features with method and chart-symbol metadata. Existing
+  `plot-fixes.json` storage and Capture/Voyage Viewer compatibility remain in
+  place.
+- Record GPS-return fixes at the returned GPS coordinate, not at the current DR
+  coordinate.
+
 ## 0.5.19
 
 - Add an immediate GPS-return plot fix when GPS recovers after being lost, so

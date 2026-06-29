@@ -60,8 +60,7 @@ let operationalTrackStartedAt = null;
 let plotFixes = [];
 let plotFixesLoaded = false;
 let plotFixSavePending = false;
-let lastTrustState = null;
-let gpsLostPlotFixRecordedFor = null;
+let lastPlotFixesUpdatedAt = null;
 let coordinateFormat = "dms";
 let manualFixPickMode = false;
 const maxTrackPoints = 7200;
@@ -512,7 +511,6 @@ function renderIntegrity(state) {
   if (dr) {
     drawVectors(dr, state.vectors || {});
   }
-  maybeAddGpsLostPlotFix(state);
   maybeAddAutomaticPlotFix(state);
   followOwnshipIfEnabled(state);
   keepChartLayersOnTop();
@@ -765,30 +763,6 @@ function maybeAddAutomaticPlotFix(state) {
   const plotFix = createPlotFix(state, true, "timed");
   if (!plotFix) return;
   addPlotFix(plotFix, false);
-}
-
-function maybeAddGpsLostPlotFix(state) {
-  if (!plotFixesLoaded) return;
-  const trust = state?.trust || "unknown";
-  if (trust !== "lost") {
-    if (lastTrustState === "lost" && state?.acceptedGps === true && state?.gps?.position) {
-      const plotFix = createPlotFix(state, true, "gps-return");
-      if (plotFix && addPlotFix(plotFix, false)) {
-        showToast(`GPS returned. Plotted GPS fix ${formatTime(plotFix.timestamp)}.`);
-      }
-    }
-    if (trust !== lastTrustState) gpsLostPlotFixRecordedFor = null;
-    lastTrustState = trust;
-    return;
-  }
-  const lostKey = state?.lastTrustedFix?.timestamp || state?.timestamp || "lost";
-  if (lastTrustState === "lost" || gpsLostPlotFixRecordedFor === lostKey) return;
-  const plotFix = createPlotFix(state, true, "gps-lost");
-  if (plotFix && addPlotFix(plotFix, false)) {
-    gpsLostPlotFixRecordedFor = lostKey;
-    showToast(`GPS lost. Plotted DR fix ${formatTime(plotFix.timestamp)}.`);
-  }
-  lastTrustState = trust;
 }
 
 function selectedPlotIntervalMinutes() {
@@ -1243,6 +1217,10 @@ async function refreshStatus() {
     coordinateFormat = latestStatus.coordinateFormat || "dms";
     if (!map) initMap(latestStatus.defaults);
     else syncOperationalTrackSession(latestStatus.startedAt);
+    if (latestStatus.plotFixesUpdatedAt && latestStatus.plotFixesUpdatedAt !== lastPlotFixesUpdatedAt) {
+      lastPlotFixesUpdatedAt = latestStatus.plotFixesUpdatedAt;
+      loadPlotFixes();
+    }
     renderIntegrity(latestStatus.ajrmMarineGpsIntegrity);
   } catch (error) {
     showToast(error.message || "Unable to refresh DR state", true);

@@ -102,6 +102,9 @@ test("normalizes persisted plot fixes", () => {
   assert.equal(fixes[1].plotType, "observed-fix");
   assert.equal(fixes[1].note, "visual bearings");
   assert.equal(fixes[2].plotType, "gps-return");
+  assert.equal(fixes[2].resource.resourceType, "fixes");
+  assert.deepEqual(fixes[2].resource.feature.geometry.coordinates, [-5.57, 56.22]);
+  assert.equal(fixes[2].resource.feature.properties.symbol, "square-dot");
 });
 
 test("web app renders lost GPS plot fixes as estimated positions", () => {
@@ -153,12 +156,66 @@ test("web app forces breadcrumb points at plotted electronic fixes", () => {
   assert.match(app, /!force && last && distanceMeters\(last, position\) < 2/);
 });
 
-test("web app plots a GPS fix immediately when GPS returns", () => {
+test("server creates a GPS-return fix from the returned GPS coordinate", () => {
+  const fix = pluginFactory._private.createPlotFixFromIntegrityState(
+    {
+      timestamp: "2026-06-29T18:56:00.000Z",
+      trust: "normal",
+      acceptedGps: true,
+      gps: {
+        position: { latitude: 56.2, longitude: -5.5 },
+        speedOverGround: 2,
+        courseOverGroundTrue: Math.PI / 2,
+      },
+      operationalDeadReckoning: {
+        position: { latitude: 56.3, longitude: -5.6 },
+        source: "heading-stw-current",
+        uncertaintyRadiusMeters: 120,
+      },
+      lastTrustedFix: {
+        timestamp: "2026-06-29T18:50:00.000Z",
+        position: { latitude: 56.19, longitude: -5.49 },
+      },
+      vectors: {
+        courseOverGround: { speedMps: 2, bearingTrueDegrees: 90 },
+      },
+    },
+    true,
+    "gps-return",
+  );
+
+  assert.equal(fix.plotType, "gps-return");
+  assert.deepEqual(fix.position, { latitude: 56.2, longitude: -5.5 });
+  assert.equal(fix.cogTrueDegrees, 90);
+  assert.equal(fix.distanceFromLastTrustedFixMeters > 0, true);
+});
+
+test("server exposes plot fixes as resource-style fix features", () => {
+  const resource = pluginFactory._private.plotFixToResource({
+    id: "return",
+    timestamp: "2026-06-29T18:56:00.000Z",
+    plotType: "gps-return",
+    position: { latitude: 56.2, longitude: -5.5 },
+    trust: "normal",
+    uncertaintyRadiusMeters: 12,
+  });
+
+  assert.equal(resource.id, "return");
+  assert.equal(resource.resourceType, "fixes");
+  assert.equal(resource.feature.type, "Feature");
+  assert.deepEqual(resource.feature.geometry.coordinates, [-5.5, 56.2]);
+  assert.equal(resource.feature.properties.method, "electronic");
+  assert.equal(resource.feature.properties.symbol, "square-dot");
+  assert.equal(resource.feature.properties.trust, "normal");
+  assert.equal(resource.feature.properties.uncertaintyRadiusMeters, 12);
+});
+
+test("web app reloads server-authored plot fixes when status changes", () => {
   const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
 
-  assert.match(app, /lastTrustState === "lost" && state\?\.acceptedGps === true/);
-  assert.match(app, /createPlotFix\(state, true, "gps-return"\)/);
-  assert.match(app, /GPS returned\. Plotted GPS fix/);
+  assert.match(app, /latestStatus\.plotFixesUpdatedAt/);
+  assert.match(app, /lastPlotFixesUpdatedAt/);
+  assert.doesNotMatch(app, /lastTrustState === "lost"/);
   assert.match(app, /if \(plotFix\.plotType === "gps-return"\) return "GPS fix"/);
 });
 
