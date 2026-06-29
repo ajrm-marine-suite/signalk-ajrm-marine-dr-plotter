@@ -20,6 +20,8 @@ const elements = {
   plotInterval: document.querySelector("#plotInterval"),
   plotNowDrawer: document.querySelector("#plotNowDrawer"),
   clearPlots: document.querySelector("#clearPlots"),
+  prunePlotFixesAge: document.querySelector("#prunePlotFixesAge"),
+  prunePlotFixes: document.querySelector("#prunePlotFixes"),
   plotStatus: document.querySelector("#plotStatus"),
   chartStatus: document.querySelector("#chartStatus"),
   baseMapChoices: [...document.querySelectorAll('input[name="baseMap"]')],
@@ -780,6 +782,23 @@ function clearPlotFixes() {
   showToast("Plot fixes cleared.");
 }
 
+function pruneOldPlotFixes() {
+  const days = Number(elements.prunePlotFixesAge.value);
+  if (!Number.isFinite(days) || days <= 0) return;
+  const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
+  const before = plotFixes.length;
+  plotFixes = plotFixes.filter((plotFix) => {
+    const timestampMs = Date.parse(plotFix.timestamp);
+    return Number.isFinite(timestampMs) && timestampMs >= cutoffMs;
+  });
+  savePlotFixesLocal();
+  redrawPlotFixes();
+  updatePlotStatus();
+  savePlotFixesServer();
+  const removed = before - plotFixes.length;
+  showToast(removed ? `Pruned ${removed} old plot fix${removed === 1 ? "" : "es"}.` : "No old plot fixes to prune.");
+}
+
 function redrawPlotFixes() {
   if (!plotFixLayer) return;
   plotFixLayer.clearLayers();
@@ -788,9 +807,9 @@ function redrawPlotFixes() {
       icon: L.divIcon({
         className: `plot-fix-marker ${plotFixMarkerClass(plotFix)}`,
         html: `<span class="plot-fix-time">${escapeHtml(formatTime(plotFix.timestamp))}</span><span class="plot-fix-symbol"></span>`,
-        iconSize: [64, 42],
-        iconAnchor: plotFixIconAnchor(plotFix),
-        popupAnchor: [0, -30],
+        iconSize: [1, 1],
+        iconAnchor: [0, 0],
+        popupAnchor: [0, -36],
       }),
     });
     marker.bindPopup(plotFixPopupHtml(plotFix), { maxWidth: 320 });
@@ -803,10 +822,6 @@ function plotFixMarkerClass(plotFix) {
   const classes = [plotFix.plotType || (plotFix.automatic ? "timed" : "manual")];
   classes.push(plotFix.trust === "lost" || plotFix.plotType === "gps-lost" ? "estimated-position" : "electronic-fix");
   return classes.join(" ");
-}
-
-function plotFixIconAnchor(plotFix) {
-  return plotFix.trust === "lost" || plotFix.plotType === "gps-lost" ? [32, 34] : [32, 30];
 }
 
 function plotFixPopupHtml(plotFix) {
@@ -1049,6 +1064,7 @@ elements.centreOwnship.addEventListener("click", recenterOnOwnship);
 elements.plotNow.addEventListener("click", () => addPlotFix(createPlotFix(latestStatus?.ajrmMarineGpsIntegrity, false, "manual")));
 elements.plotNowDrawer.addEventListener("click", () => addPlotFix(createPlotFix(latestStatus?.ajrmMarineGpsIntegrity, false, "manual")));
 elements.clearPlots.addEventListener("click", clearPlotFixes);
+elements.prunePlotFixes.addEventListener("click", pruneOldPlotFixes);
 elements.plotInterval.value = localStorage.getItem(plotFixIntervalStorageKey) || "10";
 elements.plotInterval.addEventListener("change", () => {
   localStorage.setItem(plotFixIntervalStorageKey, elements.plotInterval.value);

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.9
+
+- Anchor plotted fix markers directly on the plotted position dot so labels and
+  symbol geometry cannot move fixes away from the DR breadcrumb when zooming.
+- Add a manual pruning control for old navigator plot fixes while keeping the
+  existing hard safety cap of the newest 1000 fixes.
+
 ## 0.5.8
 
 - Add the same GPS OK/lost status LED used by AJRM Marine Display to the DR

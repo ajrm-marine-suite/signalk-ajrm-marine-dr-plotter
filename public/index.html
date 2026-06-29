@@ -86,6 +86,18 @@
           <button id="plotNowDrawer" type="button">Plot now</button>
           <button id="clearPlots" type="button">Clear plots</button>
         </div>
+        <label class="field-row">
+          <span>Prune</span>
+          <select id="prunePlotFixesAge">
+            <option value="1">Older than 1 day</option>
+            <option value="3">Older than 3 days</option>
+            <option value="7" selected>Older than 7 days</option>
+            <option value="30">Older than 30 days</option>
+          </select>
+        </label>
+        <div class="plot-actions">
+          <button id="prunePlotFixes" type="button">Prune old fixes</button>
+        </div>
         <p id="plotStatus" class="plot-status">No plotted fixes.</p>
       </div>
       <div class="legend">

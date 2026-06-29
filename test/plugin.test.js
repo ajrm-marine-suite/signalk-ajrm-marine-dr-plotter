@@ -94,8 +94,10 @@ test("web app renders lost GPS plot fixes as estimated positions", () => {
 
   assert.match(app, /estimated-position/);
   assert.match(app, /trust === "lost"/);
-  assert.match(app, /iconAnchor: plotFixIconAnchor\(plotFix\)/);
+  assert.match(app, /iconSize: \[1, 1\]/);
+  assert.match(app, /iconAnchor: \[0, 0\]/);
   assert.match(css, /\.plot-fix-marker\.estimated-position \.plot-fix-symbol/);
+  assert.match(css, /transform: translate\(-50%, -50%\)/);
 });
 
 test("web app includes Display-style GPS status LED", () => {
@@ -110,4 +112,14 @@ test("web app includes Display-style GPS status LED", () => {
   assert.match(app, /GPS LOST/);
   assert.match(css, /\.ajrm-marine-gps-status-ok \.ajrm-marine-gps-status-led/);
   assert.match(css, /\.ajrm-marine-gps-status-alert \.ajrm-marine-gps-status-led/);
+});
+
+test("web app exposes manual plot-fix pruning", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+
+  assert.match(html, /id="prunePlotFixesAge"/);
+  assert.match(html, /Prune old fixes/);
+  assert.match(app, /function pruneOldPlotFixes/);
+  assert.match(app, /savePlotFixesServer\(\)/);
 });

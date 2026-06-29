@@ -28,7 +28,9 @@ The plotter renders:
 - Persisted DR plot fixes, labelled with plot time, including automatic timed
   fixes, manual **Plot now** fixes, and an immediate fix when GPS becomes lost.
   GPS-lost plot fixes are shown as Estimated Position triangle symbols; GPS
-  derived plot fixes are shown as Electronic Fix square symbols.
+  derived plot fixes are shown as Electronic Fix square symbols. Fixes are
+  stored on the Signal K server, capped to the newest 1000 records, and can be
+  manually pruned by age after they have been captured in a voyage bundle.
 - Colour-coded GPS trust state and warnings.
 
 Chart controls follow the same lightweight model as Voyage Viewer: offline
