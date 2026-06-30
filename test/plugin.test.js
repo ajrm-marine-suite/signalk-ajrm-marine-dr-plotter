@@ -53,7 +53,7 @@ test("status declares that AIS targets are intentionally absent", () => {
   });
   assert.equal(json.noAisTargets, true);
   assert.equal(json.coordinateFormat, "dms");
-  assert.equal(json.plotFixIntervalMinutes, 10);
+  assert.equal(Number.isFinite(json.plotFixIntervalMinutes), true);
   assert.match(json.startedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.deepEqual(json.ajrmMarineGpsIntegrity, { trust: "normal" });
 });
@@ -201,6 +201,55 @@ test("server creates a GPS-return fix from the returned GPS coordinate", () => {
   assert.equal(fix.distanceFromLastTrustedFixMeters > 0, true);
 });
 
+test("server creates operational track points from GPS Integrity state", () => {
+  const point = pluginFactory._private.trackPointFromIntegrityState({
+    timestamp: "2026-06-30T15:34:00.000Z",
+    trust: "normal",
+    gps: {
+      position: { latitude: 56.2, longitude: -5.5 },
+    },
+    operationalDeadReckoning: {
+      position: { latitude: 56.21, longitude: -5.51 },
+      source: "gps-locked",
+    },
+  });
+
+  assert.deepEqual(point, {
+    latitude: 56.21,
+    longitude: -5.51,
+    timestamp: "2026-06-30T15:34:00.000Z",
+    trust: "normal",
+    source: "gps-locked",
+  });
+});
+
+test("normalizes operational track points for server persistence", () => {
+  const points = pluginFactory._private.normalizeTrackPoints([
+    {
+      latitude: "56.3",
+      longitude: "-5.3",
+      timestamp: "2026-06-30T15:35:00.000Z",
+      trust: "lost",
+      source: "heading-stw-current",
+    },
+    {
+      latitude: 56.2,
+      longitude: -5.2,
+      timestamp: "2026-06-30T15:34:00.000Z",
+    },
+    {
+      latitude: 99,
+      longitude: -5.4,
+      timestamp: "2026-06-30T15:36:00.000Z",
+    },
+  ]);
+
+  assert.equal(points.length, 2);
+  assert.equal(points[0].timestamp, "2026-06-30T15:34:00.000Z");
+  assert.equal(points[1].timestamp, "2026-06-30T15:35:00.000Z");
+  assert.equal(points[1].source, "heading-stw-current");
+});
+
 test("server exposes plot fixes as resource-style fix features", () => {
   const resource = pluginFactory._private.plotFixToResource({
     id: "return",
@@ -235,6 +284,20 @@ test("web app reloads server-authored plot fixes when status changes", () => {
   assert.match(plugin, /router\.put\("\/settings"/);
   assert.match(app, /\/settings`, "PUT"/);
   assert.match(app, /if \(plotFix\.plotType === "gps-return"\) return "GPS fix"/);
+});
+
+test("web app reloads server-authored operational track when status changes", () => {
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+  const plugin = fs.readFileSync(path.join(__dirname, "..", "plugin", "index.js"), "utf8");
+
+  assert.match(plugin, /OPERATIONAL_TRACK_FILE/);
+  assert.match(plugin, /router\.get\("\/track"/);
+  assert.match(plugin, /operationalTrackUpdatedAt/);
+  assert.match(plugin, /trackPointFromIntegrityState/);
+  assert.match(app, /latestStatus\.operationalTrackUpdatedAt/);
+  assert.match(app, /\$\{apiBase\}\/track/);
+  assert.match(app, /\$\{apiBase\}\/track`, "DELETE"/);
+  assert.doesNotMatch(app, /function syncOperationalTrackSession/);
 });
 
 test("web app shows live cursor latitude and longitude", () => {

@@ -56,11 +56,11 @@ let latestStatus = null;
 let mapFollowSelf = true;
 let disableMapFollowPause = false;
 let operationalTrack = [];
-let operationalTrackStartedAt = null;
 let plotFixes = [];
 let plotFixesLoaded = false;
 let plotFixSavePending = false;
 let lastPlotFixesUpdatedAt = null;
+let lastOperationalTrackUpdatedAt = null;
 let coordinateFormat = "dms";
 let manualFixPickMode = false;
 const maxTrackPoints = 7200;
@@ -583,46 +583,34 @@ function updateOperationalTrack(position, timestamp, force = false) {
   if (operationalTrack.length > maxTrackPoints) {
     operationalTrack = operationalTrack.slice(operationalTrack.length - maxTrackPoints);
   }
-  saveOperationalTrack();
   redrawOperationalTrack();
 }
 
-function loadOperationalTrack() {
-  const sessionStartedAt = latestStatus?.startedAt || null;
-  operationalTrackStartedAt = sessionStartedAt;
+async function loadOperationalTrack() {
+  try {
+    const data = await requestJson(`${apiBase}/track`);
+    operationalTrack = normalizeTrackPoints(data.points || []);
+  } catch {
+    operationalTrack = loadOperationalTrackLocal();
+  }
+  redrawOperationalTrack();
+}
+
+function loadOperationalTrackLocal() {
   try {
     const parsed = JSON.parse(localStorage.getItem(trackStorageKey) || "null");
-    if (!parsed || parsed.startedAt !== sessionStartedAt || !Array.isArray(parsed.points)) {
-      operationalTrack = [];
-      saveOperationalTrack();
-      return;
-    }
-    operationalTrack = normalizeTrackPoints(parsed.points);
+    return normalizeTrackPoints(parsed?.points || parsed || []);
   } catch {
-    operationalTrack = [];
-    saveOperationalTrack();
+    return [];
   }
 }
 
-function saveOperationalTrack() {
+function saveOperationalTrackLocal() {
   try {
-    localStorage.setItem(
-      trackStorageKey,
-      JSON.stringify({
-        startedAt: operationalTrackStartedAt,
-        points: operationalTrack.slice(-maxTrackPoints),
-      }),
-    );
+    localStorage.setItem(trackStorageKey, JSON.stringify({ points: operationalTrack.slice(-maxTrackPoints) }));
   } catch (_error) {
-    // Ignore storage quota/private-mode failures; live plotting should continue.
+    // Browser storage is only a degraded fallback; server persistence is preferred.
   }
-}
-
-function syncOperationalTrackSession(startedAt) {
-  const sessionStartedAt = startedAt || null;
-  if (operationalTrackStartedAt === sessionStartedAt) return;
-  loadOperationalTrack();
-  if (trackLayer) redrawOperationalTrack();
 }
 
 function normalizeTrackPoints(points) {
@@ -909,8 +897,9 @@ function clearPlotFixes() {
 
 function clearAllPlots() {
   operationalTrack = [];
-  saveOperationalTrack();
+  saveOperationalTrackLocal();
   redrawOperationalTrack();
+  sendJson(`${apiBase}/track`, "DELETE").catch(() => {});
   clearPlotFixes();
   showToast("All DR plots cleared.");
 }
@@ -1212,7 +1201,10 @@ async function refreshStatus() {
       updatePlotStatus();
     }
     if (!map) initMap(latestStatus.defaults);
-    else syncOperationalTrackSession(latestStatus.startedAt);
+    if (latestStatus.operationalTrackUpdatedAt && latestStatus.operationalTrackUpdatedAt !== lastOperationalTrackUpdatedAt) {
+      lastOperationalTrackUpdatedAt = latestStatus.operationalTrackUpdatedAt;
+      loadOperationalTrack();
+    }
     if (latestStatus.plotFixesUpdatedAt && latestStatus.plotFixesUpdatedAt !== lastPlotFixesUpdatedAt) {
       lastPlotFixesUpdatedAt = latestStatus.plotFixesUpdatedAt;
       loadPlotFixes();

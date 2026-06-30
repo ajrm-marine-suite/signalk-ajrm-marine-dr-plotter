@@ -9,8 +9,10 @@ const PLUGIN_ID = "signalk-ajrm-marine-dr-plotter";
 const AJRM_MARINE_GPS_INTEGRITY_STATE_PATH = "plugins.ajrmMarineGpsIntegrity.navigationIntegrity";
 const DATA_DIRECTORY = path.join(os.homedir(), ".signalk", "plugin-config-data", PLUGIN_ID);
 const PLOT_FIXES_FILE = path.join(DATA_DIRECTORY, "plot-fixes.json");
+const OPERATIONAL_TRACK_FILE = path.join(DATA_DIRECTORY, "operational-track.json");
 const SETTINGS_FILE = path.join(DATA_DIRECTORY, "settings.json");
 const MAX_PLOT_FIXES = 1000;
+const MAX_TRACK_POINTS = 7200;
 
 module.exports = function ajrmMarineDrPlotter(app) {
   const plugin = {};
@@ -20,7 +22,9 @@ module.exports = function ajrmMarineDrPlotter(app) {
   let lastTrustState = null;
   let gpsLostPlotFixRecordedFor = null;
   let plotFixesUpdatedAt = null;
+  let operationalTrackUpdatedAt = null;
   let timedPlotFixWritePending = false;
+  let trackWritePending = false;
 
   plugin.id = PLUGIN_ID;
   plugin.name = "AJRM Marine DR Plotter";
@@ -79,8 +83,8 @@ module.exports = function ajrmMarineDrPlotter(app) {
     options = normalizeOptions(pluginOptions, loadSettingsSync());
     startedAt = new Date().toISOString();
     subscribe();
-    recordAutomaticFixes(getSelfPath(app, AJRM_MARINE_GPS_INTEGRITY_STATE_PATH)).catch((error) => {
-      app.error?.(`[${PLUGIN_ID}] startup plot-fix check failed: ${error.stack || error.message}`);
+    recordNavigationState(getSelfPath(app, AJRM_MARINE_GPS_INTEGRITY_STATE_PATH)).catch((error) => {
+      app.error?.(`[${PLUGIN_ID}] startup navigation state record failed: ${error.stack || error.message}`);
     });
     app.setPluginStatus?.(`${options.enabled ? "Started" : "Disabled"} v${packageInfo.version}`);
   };
@@ -98,6 +102,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
     lastTrustState = null;
     gpsLostPlotFixRecordedFor = null;
     timedPlotFixWritePending = false;
+    trackWritePending = false;
   };
 
   plugin.registerWithRouter = (router) => {
@@ -124,6 +129,38 @@ module.exports = function ajrmMarineDrPlotter(app) {
         res.json({ ok: true, plotFixes: await loadPlotFixes() });
       } catch (error) {
         app.error?.(`[${PLUGIN_ID}] plot-fix load failed: ${error.stack || error.message}`);
+        res.status(500).json({ ok: false, error: error.message });
+      }
+    });
+
+    router.get("/track", async (_req, res) => {
+      try {
+        res.json({ ok: true, points: await loadOperationalTrack() });
+      } catch (error) {
+        app.error?.(`[${PLUGIN_ID}] operational track load failed: ${error.stack || error.message}`);
+        res.status(500).json({ ok: false, error: error.message });
+      }
+    });
+
+    router.put("/track", async (req, res) => {
+      try {
+        const points = normalizeTrackPoints(req.body?.points || req.body?.track || []);
+        await saveOperationalTrack(points);
+        operationalTrackUpdatedAt = new Date().toISOString();
+        res.json({ ok: true, points });
+      } catch (error) {
+        app.error?.(`[${PLUGIN_ID}] operational track save failed: ${error.stack || error.message}`);
+        res.status(500).json({ ok: false, error: error.message });
+      }
+    });
+
+    router.delete("/track", async (_req, res) => {
+      try {
+        await saveOperationalTrack([]);
+        operationalTrackUpdatedAt = new Date().toISOString();
+        res.json({ ok: true, points: [] });
+      } catch (error) {
+        app.error?.(`[${PLUGIN_ID}] operational track clear failed: ${error.stack || error.message}`);
         res.status(500).json({ ok: false, error: error.message });
       }
     });
@@ -201,8 +238,8 @@ module.exports = function ajrmMarineDrPlotter(app) {
 
   function status() {
     const integrity = getSelfPath(app, AJRM_MARINE_GPS_INTEGRITY_STATE_PATH) || null;
-    recordAutomaticFixes(integrity).catch((error) => {
-      app.error?.(`[${PLUGIN_ID}] status plot-fix check failed: ${error.stack || error.message}`);
+    recordNavigationState(integrity).catch((error) => {
+      app.error?.(`[${PLUGIN_ID}] status navigation state record failed: ${error.stack || error.message}`);
     });
     return {
       ok: true,
@@ -220,6 +257,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
         zoom: options.defaultZoom,
       },
       plotFixesUpdatedAt,
+      operationalTrackUpdatedAt,
       ajrmMarineGpsIntegrity: integrity,
       ajrmMarineGpsIntegrityStatePath: `vessels.self.${AJRM_MARINE_GPS_INTEGRITY_STATE_PATH}`,
     };
@@ -254,11 +292,33 @@ module.exports = function ajrmMarineDrPlotter(app) {
     for (const update of delta?.updates || []) {
       for (const value of update?.values || []) {
         if (value?.path === AJRM_MARINE_GPS_INTEGRITY_STATE_PATH) {
-          recordAutomaticFixes(value.value).catch((error) => {
-            app.error?.(`[${PLUGIN_ID}] automatic plot-fix failed: ${error.stack || error.message}`);
+          recordNavigationState(value.value).catch((error) => {
+            app.error?.(`[${PLUGIN_ID}] navigation state record failed: ${error.stack || error.message}`);
           });
         }
       }
+    }
+  }
+
+  async function recordNavigationState(state) {
+    await appendOperationalTrackSample(state);
+    await recordAutomaticFixes(state);
+  }
+
+  async function appendOperationalTrackSample(state) {
+    if (trackWritePending) return;
+    const point = trackPointFromIntegrityState(state);
+    if (!point) return;
+    trackWritePending = true;
+    try {
+      const existing = await loadOperationalTrack();
+      const last = existing[existing.length - 1];
+      if (last && (last.timestamp === point.timestamp || distanceMeters(last, point) < 2)) return;
+      const points = normalizeTrackPoints([...existing, point]);
+      await saveOperationalTrack(points);
+      operationalTrackUpdatedAt = new Date().toISOString();
+    } finally {
+      trackWritePending = false;
     }
   }
 
@@ -345,6 +405,62 @@ async function savePlotFixes(plotFixes) {
     `${JSON.stringify({ schemaVersion: 1, plotFixes: normalized }, null, 2)}\n`,
   );
   await fs.promises.rename(temporaryPath, PLOT_FIXES_FILE);
+}
+
+async function loadOperationalTrack() {
+  try {
+    const parsed = JSON.parse(await fs.promises.readFile(OPERATIONAL_TRACK_FILE, "utf8"));
+    return normalizeTrackPoints(parsed?.points || parsed?.track || []);
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+async function saveOperationalTrack(points) {
+  const normalized = normalizeTrackPoints(points);
+  await fs.promises.mkdir(DATA_DIRECTORY, { recursive: true });
+  const temporaryPath = `${OPERATIONAL_TRACK_FILE}.tmp`;
+  await fs.promises.writeFile(
+    temporaryPath,
+    `${JSON.stringify({ schemaVersion: 1, points: normalized }, null, 2)}\n`,
+  );
+  await fs.promises.rename(temporaryPath, OPERATIONAL_TRACK_FILE);
+}
+
+function trackPointFromIntegrityState(state) {
+  const position = ownshipFollowPosition(state);
+  if (!position) return null;
+  const operationalDr = state?.operationalDeadReckoning || state?.deadReckoning || {};
+  return normalizeTrackPoint({
+    ...position,
+    timestamp: state?.timestamp || new Date().toISOString(),
+    trust: state?.trust || null,
+    source: operationalDr.source || null,
+  });
+}
+
+function normalizeTrackPoints(value) {
+  return (Array.isArray(value) ? value : [])
+    .map(normalizeTrackPoint)
+    .filter(Boolean)
+    .sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp))
+    .slice(-MAX_TRACK_POINTS);
+}
+
+function normalizeTrackPoint(value) {
+  const latitude = Number(value?.latitude);
+  const longitude = Number(value?.longitude);
+  const timestamp = normalizeTimestamp(value?.timestamp);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !timestamp) return null;
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+  return {
+    latitude,
+    longitude,
+    timestamp,
+    trust: typeof value.trust === "string" && value.trust.trim() ? value.trust.trim().slice(0, 40) : null,
+    source: typeof value.source === "string" && value.source.trim() ? value.source.trim().slice(0, 80) : null,
+  };
 }
 
 function createPlotFixFromIntegrityState(state, automatic, plotType = automatic ? "timed" : "manual") {
@@ -588,6 +704,9 @@ module.exports._private = {
   createPlotFixFromIntegrityState,
   normalizePlotFix,
   normalizePlotFixes,
+  normalizeTrackPoint,
+  normalizeTrackPoints,
+  trackPointFromIntegrityState,
   normalizeOptions,
   normalizePlotFixIntervalMinutes,
   plotFixToResource,
