@@ -20,13 +20,16 @@ test("normalizes configured defaults", () => {
     defaultLongitude: "-6.2",
     defaultZoom: 99,
     coordinateFormat: "decimal",
+    plotFixIntervalMinutes: "999",
   });
   assert.equal(options.refreshIntervalMs, 500);
   assert.equal(options.defaultLatitude, 57.1);
   assert.equal(options.defaultLongitude, -6.2);
   assert.equal(options.defaultZoom, 18);
   assert.equal(options.coordinateFormat, "decimal");
+  assert.equal(options.plotFixIntervalMinutes, 120);
   assert.equal(pluginFactory._private.normalizeOptions({ coordinateFormat: "bad" }).coordinateFormat, "dms");
+  assert.equal(pluginFactory._private.normalizeOptions({}, { plotFixIntervalMinutes: 5 }).plotFixIntervalMinutes, 5);
 });
 
 test("status declares that AIS targets are intentionally absent", () => {
@@ -50,6 +53,7 @@ test("status declares that AIS targets are intentionally absent", () => {
   });
   assert.equal(json.noAisTargets, true);
   assert.equal(json.coordinateFormat, "dms");
+  assert.equal(json.plotFixIntervalMinutes, 10);
   assert.match(json.startedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.deepEqual(json.ajrmMarineGpsIntegrity, { trust: "normal" });
 });
@@ -219,10 +223,17 @@ test("server exposes plot fixes as resource-style fix features", () => {
 
 test("web app reloads server-authored plot fixes when status changes", () => {
   const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+  const plugin = fs.readFileSync(path.join(__dirname, "..", "plugin", "index.js"), "utf8");
 
   assert.match(app, /latestStatus\.plotFixesUpdatedAt/);
   assert.match(app, /lastPlotFixesUpdatedAt/);
   assert.doesNotMatch(app, /lastTrustState === "lost"/);
+  assert.doesNotMatch(app, /function maybeAddAutomaticPlotFix/);
+  assert.doesNotMatch(app, /plotFixIntervalStorageKey/);
+  assert.match(plugin, /appendTimedPlotFixIfDue/);
+  assert.match(plugin, /plotFixIntervalMinutes/);
+  assert.match(plugin, /router\.put\("\/settings"/);
+  assert.match(app, /\/settings`, "PUT"/);
   assert.match(app, /if \(plotFix\.plotType === "gps-return"\) return "GPS fix"/);
 });
 

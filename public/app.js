@@ -67,7 +67,6 @@ const maxTrackPoints = 7200;
 const maxPlotFixes = 1000;
 const trackStorageKey = "ajrmMarineDrPlotterOperationalTrack";
 const plotFixStorageKey = "ajrmMarineDrPlotterPlotFixes";
-const plotFixIntervalStorageKey = "ajrmMarineDrPlotterPlotIntervalMinutes";
 const mpsToKnots = 1.9438444924406046;
 const chartLayerZIndex = 650;
 const seamarkLayerZIndex = 750;
@@ -501,7 +500,6 @@ function renderIntegrity(state) {
   if (dr) {
     drawVectors(dr, state.vectors || {});
   }
-  maybeAddAutomaticPlotFix(state);
   followOwnshipIfEnabled(state);
   keepChartLayersOnTop();
 }
@@ -741,23 +739,24 @@ function normalizePlotType(value) {
   return ["manual", "timed", "gps-lost", "gps-return", "observed-fix"].includes(value) ? value : null;
 }
 
-function maybeAddAutomaticPlotFix(state) {
-  if (!plotFixesLoaded) return;
-  const intervalMinutes = selectedPlotIntervalMinutes();
-  if (!intervalMinutes) return;
-  const timestampMs = Date.parse(state?.timestamp);
-  if (!Number.isFinite(timestampMs)) return;
-  const last = plotFixes[plotFixes.length - 1];
-  const lastMs = Date.parse(last?.timestamp);
-  if (Number.isFinite(lastMs) && timestampMs - lastMs < intervalMinutes * 60 * 1000) return;
-  const plotFix = createPlotFix(state, true, "timed");
-  if (!plotFix) return;
-  addPlotFix(plotFix, false);
-}
-
 function selectedPlotIntervalMinutes() {
   const value = Number(elements.plotInterval.value);
   return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+async function savePlotIntervalSetting() {
+  try {
+    const data = await sendJson(`${apiBase}/settings`, "PUT", {
+      plotFixIntervalMinutes: selectedPlotIntervalMinutes(),
+    });
+    if (data.settings?.plotFixIntervalMinutes != null) {
+      elements.plotInterval.value = String(data.settings.plotFixIntervalMinutes);
+    }
+    updatePlotStatus();
+    showToast("Plot interval saved.");
+  } catch (error) {
+    showToast(error.message || "Unable to save plot interval.", true);
+  }
 }
 
 function createPlotFix(state, automatic, plotType = automatic ? "timed" : "manual") {
@@ -1205,6 +1204,13 @@ async function refreshStatus() {
   try {
     latestStatus = await requestJson(`${apiBase}/status`);
     coordinateFormat = latestStatus.coordinateFormat || "dms";
+    if (
+      latestStatus.plotFixIntervalMinutes != null &&
+      document.activeElement !== elements.plotInterval
+    ) {
+      elements.plotInterval.value = String(latestStatus.plotFixIntervalMinutes);
+      updatePlotStatus();
+    }
     if (!map) initMap(latestStatus.defaults);
     else syncOperationalTrackSession(latestStatus.startedAt);
     if (latestStatus.plotFixesUpdatedAt && latestStatus.plotFixesUpdatedAt !== lastPlotFixesUpdatedAt) {
@@ -1237,10 +1243,9 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && manualFixPickMode) stopManualFixPickMode();
 });
 elements.prunePlotFixes.addEventListener("click", pruneOldPlotFixes);
-elements.plotInterval.value = localStorage.getItem(plotFixIntervalStorageKey) || "10";
 elements.plotInterval.addEventListener("change", () => {
-  localStorage.setItem(plotFixIntervalStorageKey, elements.plotInterval.value);
   updatePlotStatus();
+  savePlotIntervalSetting();
 });
 for (const choice of elements.baseMapChoices) {
   choice.addEventListener("change", () => setBaseMap(choice.value));

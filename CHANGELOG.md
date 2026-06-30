@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.22
+
+- Move regular timed navigator plot fixes into the Signal K plugin. DR Plotter
+  now records timed fixes even when no browser page is open, and every browser
+  or screen displays the same server-authored fix list when opened.
+- Persist the automatic plot-fix interval on the server instead of per-browser
+  local storage, so multiple display devices share one navigation record.
+
 ## 0.5.21
 
 - Hide the independent integrity DR uncertainty circle on the chart. The IDR

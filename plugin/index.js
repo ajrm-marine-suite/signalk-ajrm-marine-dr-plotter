@@ -9,6 +9,7 @@ const PLUGIN_ID = "signalk-ajrm-marine-dr-plotter";
 const AJRM_MARINE_GPS_INTEGRITY_STATE_PATH = "plugins.ajrmMarineGpsIntegrity.navigationIntegrity";
 const DATA_DIRECTORY = path.join(os.homedir(), ".signalk", "plugin-config-data", PLUGIN_ID);
 const PLOT_FIXES_FILE = path.join(DATA_DIRECTORY, "plot-fixes.json");
+const SETTINGS_FILE = path.join(DATA_DIRECTORY, "settings.json");
 const MAX_PLOT_FIXES = 1000;
 
 module.exports = function ajrmMarineDrPlotter(app) {
@@ -19,6 +20,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
   let lastTrustState = null;
   let gpsLostPlotFixRecordedFor = null;
   let plotFixesUpdatedAt = null;
+  let timedPlotFixWritePending = false;
 
   plugin.id = PLUGIN_ID;
   plugin.name = "AJRM Marine DR Plotter";
@@ -61,11 +63,20 @@ module.exports = function ajrmMarineDrPlotter(app) {
         enum: ["dms", "degrees-minutes", "decimal"],
         enumNames: ["Degrees minutes seconds", "Degrees decimal minutes", "Decimal degrees"],
       },
+      plotFixIntervalMinutes: {
+        type: "integer",
+        title: "Automatic plot-fix interval",
+        description:
+          "Server-side interval for navigator plot fixes. The plugin records these even when no DR Plotter browser page is open.",
+        default: 10,
+        minimum: 0,
+        maximum: 120,
+      },
     },
   };
 
   plugin.start = (pluginOptions = {}) => {
-    options = normalizeOptions(pluginOptions);
+    options = normalizeOptions(pluginOptions, loadSettingsSync());
     startedAt = new Date().toISOString();
     subscribe();
     recordAutomaticFixes(getSelfPath(app, AJRM_MARINE_GPS_INTEGRITY_STATE_PATH)).catch((error) => {
@@ -86,11 +97,26 @@ module.exports = function ajrmMarineDrPlotter(app) {
     startedAt = null;
     lastTrustState = null;
     gpsLostPlotFixRecordedFor = null;
+    timedPlotFixWritePending = false;
   };
 
   plugin.registerWithRouter = (router) => {
     router.get("/status", (_req, res) => {
       res.json(status());
+    });
+
+    router.put("/settings", async (req, res) => {
+      try {
+        const next = {
+          plotFixIntervalMinutes: normalizePlotFixIntervalMinutes(req.body?.plotFixIntervalMinutes),
+        };
+        options = { ...options, ...next };
+        await saveSettings(next);
+        res.json({ ok: true, settings: publicSettings() });
+      } catch (error) {
+        app.error?.(`[${PLUGIN_ID}] settings save failed: ${error.stack || error.message}`);
+        res.status(500).json({ ok: false, error: error.message });
+      }
     });
 
     router.get("/plot-fixes", async (_req, res) => {
@@ -185,6 +211,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
       enabled: options.enabled,
       refreshIntervalMs: options.refreshIntervalMs,
       coordinateFormat: options.coordinateFormat,
+      plotFixIntervalMinutes: options.plotFixIntervalMinutes,
       startedAt,
       noAisTargets: true,
       defaults: {
@@ -195,6 +222,12 @@ module.exports = function ajrmMarineDrPlotter(app) {
       plotFixesUpdatedAt,
       ajrmMarineGpsIntegrity: integrity,
       ajrmMarineGpsIntegrityStatePath: `vessels.self.${AJRM_MARINE_GPS_INTEGRITY_STATE_PATH}`,
+    };
+  }
+
+  function publicSettings() {
+    return {
+      plotFixIntervalMinutes: options.plotFixIntervalMinutes,
     };
   }
 
@@ -235,6 +268,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
       if (lastTrustState === "lost" && state?.acceptedGps === true && state?.gps?.position) {
         await appendPlotFix(createPlotFixFromIntegrityState(state, true, "gps-return"));
       }
+      await appendTimedPlotFixIfDue(state);
       if (trust !== lastTrustState) gpsLostPlotFixRecordedFor = null;
       lastTrustState = trust;
       return;
@@ -247,6 +281,25 @@ module.exports = function ajrmMarineDrPlotter(app) {
     lastTrustState = trust;
   }
 
+  async function appendTimedPlotFixIfDue(state) {
+    if (timedPlotFixWritePending) return;
+    const intervalMinutes = normalizePlotFixIntervalMinutes(options.plotFixIntervalMinutes);
+    if (!intervalMinutes) return;
+    if (state?.acceptedGps === false) return;
+    const timestampMs = Date.parse(state?.timestamp);
+    if (!Number.isFinite(timestampMs)) return;
+    const existing = await loadPlotFixes();
+    const lastFix = existing[existing.length - 1];
+    const lastMs = Date.parse(lastFix?.timestamp);
+    if (Number.isFinite(lastMs) && timestampMs - lastMs < intervalMinutes * 60 * 1000) return;
+    timedPlotFixWritePending = true;
+    try {
+      await appendPlotFix(createPlotFixFromIntegrityState(state, true, "timed"));
+    } finally {
+      timedPlotFixWritePending = false;
+    }
+  }
+
   async function appendPlotFix(plotFix) {
     const normalized = normalizePlotFix(plotFix);
     if (!normalized) return null;
@@ -257,6 +310,21 @@ module.exports = function ajrmMarineDrPlotter(app) {
     return normalized;
   }
 };
+
+function loadSettingsSync() {
+  try {
+    return JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8"));
+  } catch (_error) {
+    return {};
+  }
+}
+
+async function saveSettings(settings) {
+  await fs.promises.mkdir(DATA_DIRECTORY, { recursive: true });
+  const temporaryPath = `${SETTINGS_FILE}.tmp`;
+  await fs.promises.writeFile(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`);
+  await fs.promises.rename(temporaryPath, SETTINGS_FILE);
+}
 
 async function loadPlotFixes() {
   try {
@@ -465,7 +533,7 @@ function unwrapSignalKValue(entry) {
   return entry;
 }
 
-function normalizeOptions(value = {}) {
+function normalizeOptions(value = {}, persisted = {}) {
   const refreshIntervalMs = Number.parseInt(value.refreshIntervalMs, 10);
   const defaultZoom = Number.parseInt(value.defaultZoom, 10);
   return {
@@ -477,7 +545,15 @@ function normalizeOptions(value = {}) {
     defaultLongitude: finite(value.defaultLongitude, -5.56),
     defaultZoom: Number.isFinite(defaultZoom) ? Math.min(18, Math.max(1, defaultZoom)) : 11,
     coordinateFormat: normalizeCoordinateFormat(value.coordinateFormat),
+    plotFixIntervalMinutes: normalizePlotFixIntervalMinutes(
+      persisted.plotFixIntervalMinutes ?? value.plotFixIntervalMinutes,
+    ),
   };
+}
+
+function normalizePlotFixIntervalMinutes(value) {
+  const interval = Number.parseInt(value, 10);
+  return Number.isFinite(interval) ? Math.min(120, Math.max(0, interval)) : 10;
 }
 
 function normalizeCoordinateFormat(value) {
@@ -513,6 +589,7 @@ module.exports._private = {
   normalizePlotFix,
   normalizePlotFixes,
   normalizeOptions,
+  normalizePlotFixIntervalMinutes,
   plotFixToResource,
   unwrapSignalKValue,
 };

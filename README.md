@@ -30,11 +30,11 @@ The plotter renders:
   fixes, manual **Plot now** fixes, an immediate Estimated Position when GPS is
   lost, and an immediate Electronic Fix when GPS returns. GPS-lost plot fixes
   are shown as Estimated Position triangle symbols; GPS-derived plot fixes are
-  shown as Electronic Fix square symbols. GPS transition fixes are authored by
-  the Signal K plugin, not by the browser, so they are not lost during browser
-  refreshes. Fixes are stored on the Signal K server, capped to the newest 1000
-  records, and can be manually pruned by age after they have been captured in a
-  voyage bundle.
+  shown as Electronic Fix square symbols. Timed and GPS-transition fixes are
+  authored by the Signal K plugin, not by the browser, so they are recorded even
+  when no DR Plotter page is open. Fixes are stored on the Signal K server,
+  capped to the newest 1000 records, shared by every display device, and can be
+  manually pruned by age after they have been captured in a voyage bundle.
 - Colour-coded GPS trust state and warnings.
 
 Chart controls follow the same lightweight model as Voyage Viewer: offline
