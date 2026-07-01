@@ -2,6 +2,7 @@
 
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const pluginFactory = require("../plugin");
@@ -109,6 +110,31 @@ test("normalizes persisted plot fixes", () => {
   assert.equal(fixes[2].resource.resourceType, "fixes");
   assert.deepEqual(fixes[2].resource.feature.geometry.coordinates, [-5.57, 56.22]);
   assert.equal(fixes[2].resource.feature.properties.symbol, "square-dot");
+});
+
+test("atomic JSON writes can run concurrently without sharing one temp file", async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ajrm-dr-plotter-atomic-"));
+  const filePath = path.join(tempDir, "plot-fixes.json");
+  try {
+    await Promise.all(
+      Array.from({ length: 10 }, (_value, index) =>
+        pluginFactory._private.writeJsonFileAtomic(filePath, {
+          schemaVersion: 1,
+          plotFixes: [{ id: `fix-${index}` }],
+        }),
+      ),
+    );
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    assert.equal(parsed.schemaVersion, 1);
+    assert.equal(parsed.plotFixes.length, 1);
+    assert.match(parsed.plotFixes[0].id, /^fix-/);
+    assert.deepEqual(
+      fs.readdirSync(tempDir).filter((name) => name.includes(".tmp")),
+      [],
+    );
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("web app renders lost GPS plot fixes as estimated positions", () => {

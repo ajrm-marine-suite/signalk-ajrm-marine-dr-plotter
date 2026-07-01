@@ -14,6 +14,8 @@ const SETTINGS_FILE = path.join(DATA_DIRECTORY, "settings.json");
 const MAX_PLOT_FIXES = 1000;
 const MAX_TRACK_POINTS = 7200;
 
+let plotFixesQueue = Promise.resolve();
+
 module.exports = function ajrmMarineDrPlotter(app) {
   const plugin = {};
   let options = normalizeOptions({});
@@ -193,15 +195,12 @@ module.exports = function ajrmMarineDrPlotter(app) {
 
     router.post("/plot-fixes", async (req, res) => {
       try {
-        const existing = await loadPlotFixes();
         const plotFix = normalizePlotFix(req.body?.plotFix || req.body);
         if (!plotFix) {
           res.status(400).json({ ok: false, error: "Invalid plot fix." });
           return;
         }
-        const plotFixes = normalizePlotFixes([...existing, plotFix]);
-        await savePlotFixes(plotFixes);
-        plotFixesUpdatedAt = new Date().toISOString();
+        const { plotFixes } = await appendPlotFixToStore(plotFix);
         res.json({ ok: true, plotFix, plotFixes });
       } catch (error) {
         app.error?.(`[${PLUGIN_ID}] plot-fix append failed: ${error.stack || error.message}`);
@@ -348,13 +347,9 @@ module.exports = function ajrmMarineDrPlotter(app) {
     if (state?.acceptedGps === false) return;
     const timestampMs = Date.parse(state?.timestamp);
     if (!Number.isFinite(timestampMs)) return;
-    const existing = await loadPlotFixes();
-    const lastFix = existing[existing.length - 1];
-    const lastMs = Date.parse(lastFix?.timestamp);
-    if (Number.isFinite(lastMs) && timestampMs - lastMs < intervalMinutes * 60 * 1000) return;
     timedPlotFixWritePending = true;
     try {
-      await appendPlotFix(createPlotFixFromIntegrityState(state, true, "timed"));
+      await appendTimedPlotFixLocked(state, timestampMs, intervalMinutes);
     } finally {
       timedPlotFixWritePending = false;
     }
@@ -363,11 +358,33 @@ module.exports = function ajrmMarineDrPlotter(app) {
   async function appendPlotFix(plotFix) {
     const normalized = normalizePlotFix(plotFix);
     if (!normalized) return null;
-    const existing = await loadPlotFixes();
-    const plotFixes = normalizePlotFixes([...existing, normalized]);
-    await savePlotFixes(plotFixes);
-    plotFixesUpdatedAt = new Date().toISOString();
-    return normalized;
+    const result = await appendPlotFixToStore(normalized);
+    return result.plotFix;
+  }
+
+  async function appendTimedPlotFixLocked(state, timestampMs, intervalMinutes) {
+    return withPlotFixesLock(async () => {
+      const existing = await loadPlotFixesUnlocked();
+      const lastFix = existing[existing.length - 1];
+      const lastMs = Date.parse(lastFix?.timestamp);
+      if (Number.isFinite(lastMs) && timestampMs - lastMs < intervalMinutes * 60 * 1000) return null;
+      const normalized = normalizePlotFix(createPlotFixFromIntegrityState(state, true, "timed"));
+      if (!normalized) return null;
+      const plotFixes = normalizePlotFixes([...existing, normalized]);
+      await savePlotFixesUnlocked(plotFixes);
+      plotFixesUpdatedAt = new Date().toISOString();
+      return normalized;
+    });
+  }
+
+  async function appendPlotFixToStore(plotFix) {
+    return withPlotFixesLock(async () => {
+      const existing = await loadPlotFixesUnlocked();
+      const plotFixes = normalizePlotFixes([...existing, plotFix]);
+      await savePlotFixesUnlocked(plotFixes);
+      plotFixesUpdatedAt = new Date().toISOString();
+      return { plotFix, plotFixes };
+    });
   }
 };
 
@@ -381,12 +398,15 @@ function loadSettingsSync() {
 
 async function saveSettings(settings) {
   await fs.promises.mkdir(DATA_DIRECTORY, { recursive: true });
-  const temporaryPath = `${SETTINGS_FILE}.tmp`;
-  await fs.promises.writeFile(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`);
-  await fs.promises.rename(temporaryPath, SETTINGS_FILE);
+  await writeJsonFileAtomic(SETTINGS_FILE, settings);
 }
 
 async function loadPlotFixes() {
+  await plotFixesQueue.catch(() => {});
+  return loadPlotFixesUnlocked();
+}
+
+async function loadPlotFixesUnlocked() {
   try {
     const parsed = JSON.parse(await fs.promises.readFile(PLOT_FIXES_FILE, "utf8"));
     return normalizePlotFixes(parsed?.plotFixes || parsed?.fixes || []);
@@ -398,13 +418,21 @@ async function loadPlotFixes() {
 
 async function savePlotFixes(plotFixes) {
   const normalized = normalizePlotFixes(plotFixes);
+  return withPlotFixesLock(async () => {
+    await savePlotFixesUnlocked(normalized);
+  });
+}
+
+async function savePlotFixesUnlocked(plotFixes) {
+  const normalized = normalizePlotFixes(plotFixes);
   await fs.promises.mkdir(DATA_DIRECTORY, { recursive: true });
-  const temporaryPath = `${PLOT_FIXES_FILE}.tmp`;
-  await fs.promises.writeFile(
-    temporaryPath,
-    `${JSON.stringify({ schemaVersion: 1, plotFixes: normalized }, null, 2)}\n`,
-  );
-  await fs.promises.rename(temporaryPath, PLOT_FIXES_FILE);
+  await writeJsonFileAtomic(PLOT_FIXES_FILE, { schemaVersion: 1, plotFixes: normalized });
+}
+
+function withPlotFixesLock(operation) {
+  const run = plotFixesQueue.catch(() => {}).then(operation);
+  plotFixesQueue = run.catch(() => {});
+  return run;
 }
 
 async function loadOperationalTrack() {
@@ -420,12 +448,13 @@ async function loadOperationalTrack() {
 async function saveOperationalTrack(points) {
   const normalized = normalizeTrackPoints(points);
   await fs.promises.mkdir(DATA_DIRECTORY, { recursive: true });
-  const temporaryPath = `${OPERATIONAL_TRACK_FILE}.tmp`;
-  await fs.promises.writeFile(
-    temporaryPath,
-    `${JSON.stringify({ schemaVersion: 1, points: normalized }, null, 2)}\n`,
-  );
-  await fs.promises.rename(temporaryPath, OPERATIONAL_TRACK_FILE);
+  await writeJsonFileAtomic(OPERATIONAL_TRACK_FILE, { schemaVersion: 1, points: normalized });
+}
+
+async function writeJsonFileAtomic(filePath, value) {
+  const temporaryPath = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+  await fs.promises.writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`);
+  await fs.promises.rename(temporaryPath, filePath);
 }
 
 function trackPointFromIntegrityState(state) {
@@ -711,4 +740,5 @@ module.exports._private = {
   normalizePlotFixIntervalMinutes,
   plotFixToResource,
   unwrapSignalKValue,
+  writeJsonFileAtomic,
 };

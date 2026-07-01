@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.24
+
+- Serialize plot-fix read/modify/write operations and use unique atomic
+  temporary files so concurrent GPS-lost, GPS-return, timed, and manual fixes
+  cannot race over `plot-fixes.json.tmp`.
+
 ## 0.5.22
 
 - Move regular timed navigator plot fixes into the Signal K plugin. DR Plotter
