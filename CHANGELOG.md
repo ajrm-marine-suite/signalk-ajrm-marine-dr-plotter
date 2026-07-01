@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.25
+
+- Handle Windows file replacement semantics in the atomic JSON writer and keep
+  the persistence regression test portable across the Signal K CI matrix.
+
 ## 0.5.24
 
 - Serialize plot-fix read/modify/write operations and use unique atomic

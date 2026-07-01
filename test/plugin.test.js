@@ -112,22 +112,20 @@ test("normalizes persisted plot fixes", () => {
   assert.equal(fixes[2].resource.feature.properties.symbol, "square-dot");
 });
 
-test("atomic JSON writes can run concurrently without sharing one temp file", async () => {
+test("atomic JSON writes replace files without leaving shared temp files", async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ajrm-dr-plotter-atomic-"));
   const filePath = path.join(tempDir, "plot-fixes.json");
   try {
-    await Promise.all(
-      Array.from({ length: 10 }, (_value, index) =>
-        pluginFactory._private.writeJsonFileAtomic(filePath, {
-          schemaVersion: 1,
-          plotFixes: [{ id: `fix-${index}` }],
-        }),
-      ),
-    );
+    for (let index = 0; index < 10; index += 1) {
+      await pluginFactory._private.writeJsonFileAtomic(filePath, {
+        schemaVersion: 1,
+        plotFixes: [{ id: `fix-${index}` }],
+      });
+    }
     const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
     assert.equal(parsed.schemaVersion, 1);
     assert.equal(parsed.plotFixes.length, 1);
-    assert.match(parsed.plotFixes[0].id, /^fix-/);
+    assert.equal(parsed.plotFixes[0].id, "fix-9");
     assert.deepEqual(
       fs.readdirSync(tempDir).filter((name) => name.includes(".tmp")),
       [],

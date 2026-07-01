@@ -454,7 +454,15 @@ async function saveOperationalTrack(points) {
 async function writeJsonFileAtomic(filePath, value) {
   const temporaryPath = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
   await fs.promises.writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`);
-  await fs.promises.rename(temporaryPath, filePath);
+  try {
+    await fs.promises.rename(temporaryPath, filePath);
+  } catch (error) {
+    if (process.platform !== "win32" || !["EACCES", "EPERM", "EEXIST"].includes(error.code)) {
+      throw error;
+    }
+    await fs.promises.rm(filePath, { force: true });
+    await fs.promises.rename(temporaryPath, filePath);
+  }
 }
 
 function trackPointFromIntegrityState(state) {
