@@ -55,6 +55,15 @@ test("status declares that AIS targets are intentionally absent", () => {
   assert.equal(json.noAisTargets, true);
   assert.equal(json.coordinateFormat, "dms");
   assert.equal(Number.isFinite(json.plotFixIntervalMinutes), true);
+  assert.equal(json.plotFixPersistence.serverSide, true);
+  assert.equal(json.plotFixPersistence.storage, "server");
+  assert.equal(json.plotFixPersistence.maxCount, 1000);
+  assert.match(json.plotFixPersistence.captureFile, /dr-plot-fixes\.json$/);
+  assert.equal(json.trackPersistence.serverSide, true);
+  assert.equal(json.trackPersistence.storage, "server");
+  assert.equal(json.trackPersistence.maxCount, 7200);
+  assert.match(json.trackPersistence.captureFile, /dr-track\.jsonl$/);
+  assert.match(json.dataDirectory, /signalk-ajrm-marine-dr-plotter$/);
   assert.match(json.startedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.deepEqual(json.ajrmMarineGpsIntegrity, { trust: "normal" });
 });
