@@ -88,6 +88,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
     recordNavigationState(getSelfPath(app, AJRM_MARINE_GPS_INTEGRITY_STATE_PATH)).catch((error) => {
       app.error?.(`[${PLUGIN_ID}] startup navigation state record failed: ${error.stack || error.message}`);
     });
+    publishStatusProjection();
     app.setPluginStatus?.(`${options.enabled ? "Started" : "Disabled"} v${packageInfo.version}`);
   };
 
@@ -119,6 +120,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
         };
         options = { ...options, ...next };
         await saveSettings(next);
+        publishStatusProjection();
         res.json({ ok: true, settings: publicSettings() });
       } catch (error) {
         app.error?.(`[${PLUGIN_ID}] settings save failed: ${error.stack || error.message}`);
@@ -289,6 +291,23 @@ module.exports = function ajrmMarineDrPlotter(app) {
     return {
       plotFixIntervalMinutes: options.plotFixIntervalMinutes,
     };
+  }
+
+  function publishStatusProjection() {
+    if (typeof app.handleMessage !== "function") return;
+    app.handleMessage(PLUGIN_ID, {
+      context: "vessels.self",
+      updates: [
+        {
+          values: [
+            {
+              path: "plugins.ajrmMarineDrPlotter",
+              value: status(),
+            },
+          ],
+        },
+      ],
+    });
   }
 
   function subscribe() {

@@ -2,6 +2,10 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
+Version `0.5.28` publishes the same persistence status under
+`vessels.self.plugins.ajrmMarineDrPlotter` so Console BITE, Capture, and
+Snapshot can verify it from captured Signal K state.
+
 Version `0.5.27` exposes the server-side plot-fix and breadcrumb persistence
 contract in the status endpoint so BITE, Capture, and Voyage Viewer can verify
 that navigator fixes and DR tracks survive page changes and are bundle-ready.

@@ -34,7 +34,11 @@ test("normalizes configured defaults", () => {
 });
 
 test("status declares that AIS targets are intentionally absent", () => {
+  const messages = [];
   const app = {
+    handleMessage(_pluginId, message) {
+      messages.push(message);
+    },
     setPluginStatus() {},
     getSelfPath(path) {
       if (path === "plugins.ajrmMarineGpsIntegrity.navigationIntegrity") return { value: { trust: "normal" } };
@@ -66,6 +70,9 @@ test("status declares that AIS targets are intentionally absent", () => {
   assert.match(json.dataDirectory, /signalk-ajrm-marine-dr-plotter$/);
   assert.match(json.startedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.deepEqual(json.ajrmMarineGpsIntegrity, { trust: "normal" });
+  const projection = messages[0].updates[0].values[0];
+  assert.equal(projection.path, "plugins.ajrmMarineDrPlotter");
+  assert.equal(projection.value.plotFixPersistence.serverSide, true);
 });
 
 test("unwraps plain Signal K values without changing them", () => {
