@@ -241,6 +241,56 @@ test("server creates a GPS-return fix from the returned GPS coordinate", () => {
   assert.equal(fix.distanceFromLastTrustedFixMeters > 0, true);
 });
 
+test("server treats GPS return as usable when acceptedGps is omitted but position is present", () => {
+  assert.equal(pluginFactory._private.recoveredGpsPositionAvailable({
+    trust: "normal",
+    gps: { position: { latitude: 56.2, longitude: -5.5 } },
+  }), true);
+  assert.equal(pluginFactory._private.recoveredGpsPositionAvailable({
+    trust: "normal",
+    acceptedGps: false,
+    gps: { position: { latitude: 56.2, longitude: -5.5 } },
+  }), false);
+  assert.equal(pluginFactory._private.recoveredGpsPositionAvailable({
+    trust: "normal",
+    acceptedGps: true,
+  }), false);
+});
+
+test("automatic GPS outage fixes record one lost fix and one return fix per outage", () => {
+  const firstLost = pluginFactory._private.automaticFixDecision({}, {
+    timestamp: "2026-07-07T12:02:29.000Z",
+    trust: "lost",
+    lastTrustedFix: { timestamp: "2026-07-07T12:02:20.000Z" },
+  });
+  assert.equal(firstLost.plotType, "gps-lost");
+  assert.equal(firstLost.next.gpsOutageActive, true);
+
+  const repeatedLost = pluginFactory._private.automaticFixDecision(firstLost.next, {
+    timestamp: "2026-07-07T12:02:30.000Z",
+    trust: "lost",
+    lastTrustedFix: { timestamp: "2026-07-07T12:02:21.000Z" },
+  });
+  assert.equal(repeatedLost.plotType, null);
+  assert.equal(repeatedLost.next.gpsOutageActive, true);
+
+  const intermediateNonLostWithoutFix = pluginFactory._private.automaticFixDecision(repeatedLost.next, {
+    timestamp: "2026-07-07T12:03:00.000Z",
+    trust: "suspect",
+  });
+  assert.equal(intermediateNonLostWithoutFix.plotType, null);
+  assert.equal(intermediateNonLostWithoutFix.next.gpsOutageActive, true);
+
+  const returned = pluginFactory._private.automaticFixDecision(intermediateNonLostWithoutFix.next, {
+    timestamp: "2026-07-07T12:03:18.000Z",
+    trust: "normal",
+    gps: { position: { latitude: 56.22, longitude: -5.56 } },
+  });
+  assert.equal(returned.plotType, "gps-return");
+  assert.equal(returned.next.gpsOutageActive, false);
+  assert.equal(returned.next.gpsLostPlotFixRecordedFor, null);
+});
+
 test("server creates operational track points from GPS Integrity state", () => {
   const point = pluginFactory._private.trackPointFromIntegrityState({
     timestamp: "2026-06-30T15:34:00.000Z",

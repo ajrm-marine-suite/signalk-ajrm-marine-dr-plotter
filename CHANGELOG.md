@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.29
+
+- Treat GPS loss and recovery as an outage state in the plugin, so DR Plotter
+  records exactly one GPS-lost plot fix for a continuous outage and records the
+  GPS-return plot fix as soon as a usable GPS position is seen again.
+- Allow the return fix when GPS Integrity omits `acceptedGps` but publishes a
+  recovered GPS position, while still refusing explicitly rejected fixes.
+
 ## 0.5.25
 
 - Handle Windows file replacement semantics in the atomic JSON writer and keep

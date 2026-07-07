@@ -22,6 +22,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
   let startedAt = null;
   let unsubscribes = [];
   let lastTrustState = null;
+  let gpsOutageActive = false;
   let gpsLostPlotFixRecordedFor = null;
   let plotFixesUpdatedAt = null;
   let operationalTrackUpdatedAt = null;
@@ -364,22 +365,26 @@ module.exports = function ajrmMarineDrPlotter(app) {
   }
 
   async function recordAutomaticFixes(state) {
-    const trust = state?.trust || "unknown";
-    if (trust !== "lost") {
-      if (lastTrustState === "lost" && state?.acceptedGps === true && state?.gps?.position) {
-        await appendPlotFix(createPlotFixFromIntegrityState(state, true, "gps-return"));
+    const memory = { lastTrustState, gpsOutageActive, gpsLostPlotFixRecordedFor };
+    const decision = automaticFixDecision(memory, state);
+    if (decision.plotType) {
+      const recorded = await appendPlotFix(createPlotFixFromIntegrityState(state, true, decision.plotType));
+      if (recorded) {
+        applyAutomaticFixMemory(decision.next);
       }
-      await appendTimedPlotFixIfDue(state);
-      if (trust !== lastTrustState) gpsLostPlotFixRecordedFor = null;
-      lastTrustState = trust;
-      return;
+    } else {
+      applyAutomaticFixMemory(decision.next);
     }
 
-    const lostKey = state?.lastTrustedFix?.timestamp || state?.timestamp || "lost";
-    if (lastTrustState === "lost" || gpsLostPlotFixRecordedFor === lostKey) return;
-    const recorded = await appendPlotFix(createPlotFixFromIntegrityState(state, true, "gps-lost"));
-    if (recorded) gpsLostPlotFixRecordedFor = lostKey;
-    lastTrustState = trust;
+    if ((state?.trust || "unknown") !== "lost") {
+      await appendTimedPlotFixIfDue(state);
+    }
+  }
+
+  function applyAutomaticFixMemory(memory) {
+    lastTrustState = memory.lastTrustState;
+    gpsOutageActive = memory.gpsOutageActive;
+    gpsLostPlotFixRecordedFor = memory.gpsLostPlotFixRecordedFor;
   }
 
   async function appendTimedPlotFixIfDue(state) {
@@ -571,6 +576,40 @@ function createPlotFixFromIntegrityState(state, automatic, plotType = automatic 
     cogTrueDegrees: state?.vectors?.courseOverGround?.bearingTrueDegrees ?? radiansToDegrees(state?.gps?.courseOverGroundTrue),
     currentDriftMps: state?.vectors?.tide?.speedMps ?? null,
     currentSetTrueDegrees: state?.vectors?.tide?.bearingTrueDegrees ?? null,
+  };
+}
+
+function recoveredGpsPositionAvailable(state) {
+  return state?.acceptedGps !== false && Boolean(normalizePosition(state?.gps?.position));
+}
+
+function automaticFixDecision(memory, state) {
+  const current = {
+    lastTrustState: memory?.lastTrustState || null,
+    gpsOutageActive: memory?.gpsOutageActive === true,
+    gpsLostPlotFixRecordedFor: memory?.gpsLostPlotFixRecordedFor || null,
+  };
+  const trust = state?.trust || "unknown";
+  if (trust === "lost") {
+    const lostKey = state?.lastTrustedFix?.timestamp || state?.timestamp || "lost";
+    const plotType = !current.gpsOutageActive && current.gpsLostPlotFixRecordedFor !== lostKey ? "gps-lost" : null;
+    return {
+      plotType,
+      next: {
+        lastTrustState: trust,
+        gpsOutageActive: true,
+        gpsLostPlotFixRecordedFor: plotType ? lostKey : current.gpsLostPlotFixRecordedFor,
+      },
+    };
+  }
+  const plotType = current.gpsOutageActive && recoveredGpsPositionAvailable(state) ? "gps-return" : null;
+  return {
+    plotType,
+    next: {
+      lastTrustState: trust,
+      gpsOutageActive: plotType ? false : current.gpsOutageActive,
+      gpsLostPlotFixRecordedFor: plotType ? null : current.gpsLostPlotFixRecordedFor,
+    },
   };
 }
 
@@ -785,6 +824,8 @@ module.exports._private = {
   normalizePlotFixes,
   normalizeTrackPoint,
   normalizeTrackPoints,
+  automaticFixDecision,
+  recoveredGpsPositionAvailable,
   trackPointFromIntegrityState,
   normalizeOptions,
   normalizePlotFixIntervalMinutes,
