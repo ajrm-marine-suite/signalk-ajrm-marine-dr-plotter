@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.1
+
+- Carry GPS Integrity's separate operational and integrity DR contracts into
+  persisted tracks, navigator fixes, and fix resources, including assurance,
+  comparison availability, GPS-dependence, leeway status, current/residual
+  origin, and selected-source provenance.
+- Show Navigation Reference kind, source, age, uncertainty, and
+  GPS-dependence, and stop labelling a GPS-derived ground-minus-water residual
+  as tide/current.
+- Preserve unavailable numeric evidence as `null`/`n/a` instead of coercing it
+  to zero.
+
 ## 0.5.29
 
 - Treat GPS loss and recovery as an outage state in the plugin, so DR Plotter

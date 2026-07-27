@@ -63,10 +63,39 @@
       </div>
       <div id="trustBadge" class="trust-badge">Unknown</div>
       <div id="warningText" class="warning-text">Waiting for GPS integrity provider.</div>
+      <h3>Navigation reference</h3>
+      <div class="facts">
+        <div><span>Kind</span><strong id="referenceKind">n/a</strong></div>
+        <div><span>Source</span><strong id="referenceSource">n/a</strong></div>
+        <div><span>Age</span><strong id="referenceAge">n/a</strong></div>
+        <div><span>Uncertainty</span><strong id="referenceUncertainty">n/a</strong></div>
+        <div><span>Dependence</span><strong id="referenceDependency">n/a</strong></div>
+      </div>
+      <h3>Operational DR</h3>
       <div class="facts">
         <div><span>Operational DR age</span><strong id="fixAge">n/a</strong></div>
         <div><span>Operational uncertainty</span><strong id="uncertainty">n/a</strong></div>
         <div><span>Operational source</span><strong id="drSource">n/a</strong></div>
+        <div><span>Dependence</span><strong id="drDependency">n/a</strong></div>
+        <div><span>Leeway</span><strong id="drLeeway">n/a</strong></div>
+        <div><span>Current/residual origin</span><strong id="drCurrentOrigin">n/a</strong></div>
+        <div><span>Provenance</span><strong id="drProvenance">n/a</strong></div>
+      </div>
+      <h3>Integrity DR</h3>
+      <div class="facts">
+        <div><span>Source</span><strong id="integritySource">n/a</strong></div>
+        <div><span>Assurance</span><strong id="integrityAssurance">n/a</strong></div>
+        <div><span>Comparison</span><strong id="integrityComparison">n/a</strong></div>
+        <div><span>Reason</span><strong id="integrityReason">n/a</strong></div>
+        <div><span>Age</span><strong id="integrityAge">n/a</strong></div>
+        <div><span>Uncertainty</span><strong id="integrityUncertainty">n/a</strong></div>
+        <div><span>Dependence</span><strong id="integrityDependency">n/a</strong></div>
+        <div><span>Leeway</span><strong id="integrityLeeway">n/a</strong></div>
+        <div><span>Current origin</span><strong id="integrityCurrentOrigin">n/a</strong></div>
+        <div><span>Provenance</span><strong id="integrityProvenance">n/a</strong></div>
+      </div>
+      <h3>GPS evidence</h3>
+      <div class="facts">
         <div><span>GPS HDOP</span><strong id="hdop">n/a</strong></div>
       </div>
       <div class="drawer-section plot-settings">
@@ -123,12 +152,12 @@
       <div class="legend">
         <div><i class="swatch gps"></i> GPS fix</div>
         <div><i class="swatch dr"></i> operational DR fallback</div>
-        <div><i class="swatch integrity-dr"></i> independent integrity DR</div>
+        <div><i class="swatch integrity-dr"></i> independent integrity comparison DR</div>
         <div><i class="line track"></i> operational track</div>
         <div><i class="plot-symbol"></i> timed plot fix</div>
         <div><i class="line heading"></i> single arrow heading/STW</div>
         <div><i class="line cog"></i> double arrow COG/SOG</div>
-        <div><i class="line tide"></i> triple arrow tide/current</div>
+        <div><i class="line tide"></i> triple arrow current/residual</div>
       </div>
     </aside>
 

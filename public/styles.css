@@ -326,6 +326,12 @@ button:active {
   color: #526475;
 }
 
+.facts strong {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
 .field-row {
   display: grid;
   grid-template-columns: 1fr minmax(92px, auto);

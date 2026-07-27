@@ -26,14 +26,22 @@ The plotter renders:
 - GPS fix position when trusted or available.
 - Operational dead-reckoning fallback from the GPS Integrity provider. This is
   normally hidden while it sits directly on top of accepted GPS, then appears
-  when GPS is unavailable or the position separates.
-- Independent integrity dead reckoning from the GPS Integrity provider, shown as
-  a separate marker when it separates enough to matter for spoof/drift testing.
+  when GPS is unavailable or the position separates. Its source,
+  GPS-dependence, leeway status, current/residual origin, uncertainty, and
+  selected input provenance remain visible.
+- Integrity dead reckoning from the GPS Integrity provider, shown as a separate
+  marker when it separates enough to matter for spoof/drift testing and the
+  provider explicitly says its comparison is active. The status drawer reports
+  whether assurance is `full`, `reduced`, or `unavailable`; it does not plot or
+  call a reduced or unavailable track a valid independent comparison.
 - Operational uncertainty circles that expand as confidence drops or the active
   DR track ages.
+- Navigation-reference kind, source, age, uncertainty, and GPS-dependence from
+  the versioned Navigation Reference context carried by GPS Integrity.
 - Single-arrow heading/STW vector.
 - Double-arrow COG/SOG vector.
-- Triple-arrow tide/current vector.
+- Triple-arrow qualified current or ground-minus-water residual vector. The
+  explicit origin is shown, so a GPS-derived residual is not labelled as tide.
 - Persisted navigator fixes, labelled with plot time, including automatic timed
   fixes, manual **Plot now** fixes, an immediate Estimated Position when GPS is
   lost, and an immediate Electronic Fix when GPS returns. GPS-lost plot fixes
@@ -58,7 +66,12 @@ servers that support AppStore dependencies can install it from DR Plotter's
 `vessels.self.plugins.ajrmMarineGpsIntegrity.navigationIntegrity`
 
 Safety decisions stay in that provider. This webapp only renders the provider's
-state on a chart.
+state on a chart. GPS Integrity may consume
+`plugins.ajrmMarineNavigationReference.state`; DR Plotter receives that
+reference context through GPS Integrity and does not select raw sensor sources
+or recreate integrity policy itself. It renders Navigation Reference
+`contract: "ajrm-marine-navigation-reference", schemaVersion: 1` and leaves an
+unknown or future contract unavailable instead of guessing its meaning.
 
 ## Fix Resources
 
@@ -66,8 +79,12 @@ Navigator fixes are not stored as Signal K notes. DR Plotter keeps the existing
 `plot-fixes.json` file for Capture and Voyage Viewer compatibility, and also
 exposes the same records from `/plugins/signalk-ajrm-marine-dr-plotter/fixes`
 as GeoJSON-style `fixes` resources. Each fix records its method, chart symbol,
-timestamp, position, DR context, uncertainty, and available speed/heading/current
-data so the model can later be promoted to a shared Signal K resource type.
+timestamp, position, operational and integrity DR context, assurance,
+GPS-dependence, leeway/current origin, navigation-reference provenance,
+uncertainty, and available speed/heading/current data so the model can later be
+promoted to a shared Signal K resource type. Current-vector fields retain their
+explicit current/residual origin. Missing values remain `null`; they are never
+written or displayed as zero merely because evidence is unavailable.
 
 
 ## Public Beta

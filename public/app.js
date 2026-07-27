@@ -1,5 +1,7 @@
 const apiBase = "/plugins/signalk-ajrm-marine-dr-plotter";
 const gpsIntegrityApiBase = "/plugins/signalk-ajrm-marine-gps-integrity";
+const navigationReferenceContract = "ajrm-marine-navigation-reference";
+const navigationReferenceSchemaVersion = 1;
 const elements = {
   map: document.querySelector("#map"),
   subtitle: document.querySelector("#subtitle"),
@@ -14,9 +16,28 @@ const elements = {
   statusLine: document.querySelector("#statusLine"),
   trustBadge: document.querySelector("#trustBadge"),
   warningText: document.querySelector("#warningText"),
+  referenceKind: document.querySelector("#referenceKind"),
+  referenceSource: document.querySelector("#referenceSource"),
+  referenceAge: document.querySelector("#referenceAge"),
+  referenceUncertainty: document.querySelector("#referenceUncertainty"),
+  referenceDependency: document.querySelector("#referenceDependency"),
   fixAge: document.querySelector("#fixAge"),
   uncertainty: document.querySelector("#uncertainty"),
   drSource: document.querySelector("#drSource"),
+  drDependency: document.querySelector("#drDependency"),
+  drLeeway: document.querySelector("#drLeeway"),
+  drCurrentOrigin: document.querySelector("#drCurrentOrigin"),
+  drProvenance: document.querySelector("#drProvenance"),
+  integritySource: document.querySelector("#integritySource"),
+  integrityAssurance: document.querySelector("#integrityAssurance"),
+  integrityComparison: document.querySelector("#integrityComparison"),
+  integrityReason: document.querySelector("#integrityReason"),
+  integrityAge: document.querySelector("#integrityAge"),
+  integrityUncertainty: document.querySelector("#integrityUncertainty"),
+  integrityDependency: document.querySelector("#integrityDependency"),
+  integrityLeeway: document.querySelector("#integrityLeeway"),
+  integrityCurrentOrigin: document.querySelector("#integrityCurrentOrigin"),
+  integrityProvenance: document.querySelector("#integrityProvenance"),
   hdop: document.querySelector("#hdop"),
   plotInterval: document.querySelector("#plotInterval"),
   plotNowDrawer: document.querySelector("#plotNowDrawer"),
@@ -465,16 +486,46 @@ function renderIntegrity(state) {
   overlayLayer.clearLayers();
   updateGpsStatusIndicator(state);
   const trust = state?.trust || "unknown";
-  elements.trustBadge.textContent = trust.toUpperCase();
+  elements.trustBadge.textContent = `GPS ${trust.toUpperCase()}`;
   elements.trustBadge.dataset.trust = trust;
   elements.statusLine.textContent = state?.timestamp ? `Updated ${new Date(state.timestamp).toLocaleTimeString()}` : "No provider state";
-  elements.warningText.textContent = state?.reasons?.[0] || "No active GPS integrity warning.";
   const operationalDr = state?.operationalDeadReckoning || state?.deadReckoning || {};
   const integrityDr = state?.integrityDeadReckoning || {};
+  const integrityAssurance = state?.integrityAssurance || {};
+  const reference = navigationReferenceSummary(state);
+  const assuranceStatus = integrityDr.assurance || integrityAssurance.status || null;
+  const assuranceReason = integrityDr.unavailableReason || integrityAssurance.reason || null;
+  elements.warningText.textContent =
+    state?.reasons?.[0] ||
+    (assuranceStatus && assuranceStatus !== "full"
+      ? assuranceReason || `Integrity assurance is ${assuranceStatus}.`
+      : "No active GPS integrity warning.");
+  elements.referenceKind.textContent = reference.kind || "unavailable";
+  elements.referenceSource.textContent = reference.source || "n/a";
+  elements.referenceAge.textContent = formatAgeValue(reference.ageSeconds);
+  elements.referenceUncertainty.textContent = formatAngleUncertainty(reference.uncertaintyDegrees);
+  elements.referenceDependency.textContent = formatDependency(reference.gpsDependent);
   elements.fixAge.textContent = operationalDr.ageSeconds == null ? "n/a" : `${Math.round(operationalDr.ageSeconds)} s`;
   elements.uncertainty.textContent =
     operationalDr.uncertaintyRadiusMeters == null ? "n/a" : `${Math.round(operationalDr.uncertaintyRadiusMeters)} m`;
   elements.drSource.textContent = operationalDr.source || "n/a";
+  elements.drDependency.textContent = formatDependency(operationalDr.gpsDependent);
+  elements.drLeeway.textContent = operationalDr.leewayStatus || "unknown";
+  elements.drCurrentOrigin.textContent = operationalDr.currentOrigin || "n/a";
+  elements.drProvenance.textContent = formatDrProvenance(operationalDr);
+  elements.integritySource.textContent = integrityDr.source || "n/a";
+  elements.integrityAssurance.textContent = assuranceStatus || "unavailable";
+  elements.integrityComparison.textContent = formatComparison(
+    integrityDr.comparisonAvailable ?? integrityAssurance.comparisonAvailable,
+  );
+  elements.integrityReason.textContent = assuranceReason || "n/a";
+  elements.integrityAge.textContent = formatAgeValue(integrityDr.ageSeconds);
+  elements.integrityUncertainty.textContent = formatMeters(integrityDr.uncertaintyRadiusMeters);
+  elements.integrityDependency.textContent = formatDependency(integrityDr.gpsDependent);
+  elements.integrityLeeway.textContent =
+    integrityDr.leewayStatus || integrityAssurance.leewayStatus || "unknown";
+  elements.integrityCurrentOrigin.textContent = integrityDr.currentOrigin || "n/a";
+  elements.integrityProvenance.textContent = formatDrProvenance(integrityDr);
   elements.hdop.textContent = state?.gps?.hdop ?? "n/a";
 
   const gps = state?.gps?.position;
@@ -512,6 +563,7 @@ function shouldDrawOperationalDr(gps, dr, state) {
 
 function shouldDrawIntegrityDr(state, gps, dr, integrityPosition) {
   if (!integrityPosition || !gps || state?.trust === "lost") return false;
+  if (state?.integrityDeadReckoning?.comparisonAvailable === false) return false;
   const comparisonPosition = dr || gps;
   return distanceMeters(comparisonPosition, integrityPosition) > 8;
 }
@@ -619,6 +671,17 @@ function normalizeTrackPoints(points) {
       latitude: Number(point.latitude),
       longitude: Number(point.longitude),
       timestamp: typeof point.timestamp === "string" ? point.timestamp : null,
+      trust: stringOrNull(point.trust),
+      source: stringOrNull(point.source),
+      uncertaintyRadiusMeters: finiteOrNull(point.uncertaintyRadiusMeters),
+      gpsDependent: booleanOrNull(point.gpsDependent),
+      leewayStatus: stringOrNull(point.leewayStatus),
+      currentOrigin: stringOrNull(point.currentOrigin),
+      referenceKind: stringOrNull(point.referenceKind),
+      referenceSource: stringOrNull(point.referenceSource),
+      referenceAgeSeconds: finiteOrNull(point.referenceAgeSeconds),
+      referenceUncertaintyDegrees: finiteOrNull(point.referenceUncertaintyDegrees),
+      referenceGpsDependent: booleanOrNull(point.referenceGpsDependent),
     }))
     .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
     .slice(-maxTrackPoints);
@@ -701,6 +764,34 @@ function normalizePlotFix(value) {
     trust: stringOrNull(value.trust),
     drSource: stringOrNull(value.drSource),
     uncertaintyRadiusMeters: finiteOrNull(value.uncertaintyRadiusMeters),
+    drGpsDependent: booleanOrNull(value.drGpsDependent),
+    drLeewayStatus: stringOrNull(value.drLeewayStatus),
+    drCurrentOrigin: stringOrNull(value.drCurrentOrigin),
+    drHeadingSource: stringOrNull(value.drHeadingSource),
+    drTrackThroughWaterSource: stringOrNull(value.drTrackThroughWaterSource),
+    drSpeedThroughWaterSource: stringOrNull(value.drSpeedThroughWaterSource),
+    drCurrentSource: stringOrNull(value.drCurrentSource),
+    drLeewaySource: stringOrNull(value.drLeewaySource),
+    integritySource: stringOrNull(value.integritySource),
+    integrityAssurance: stringOrNull(value.integrityAssurance),
+    integrityComparisonAvailable: booleanOrNull(value.integrityComparisonAvailable),
+    integrityUnavailableReason: longStringOrNull(value.integrityUnavailableReason),
+    integrityAgeSeconds: finiteOrNull(value.integrityAgeSeconds),
+    integrityUncertaintyRadiusMeters: finiteOrNull(value.integrityUncertaintyRadiusMeters),
+    integrityGpsDependent: booleanOrNull(value.integrityGpsDependent),
+    integrityLeewayStatus: stringOrNull(value.integrityLeewayStatus),
+    integrityCurrentOrigin: stringOrNull(value.integrityCurrentOrigin),
+    integrityHeadingSource: stringOrNull(value.integrityHeadingSource),
+    integrityTrackThroughWaterSource: stringOrNull(value.integrityTrackThroughWaterSource),
+    integritySpeedThroughWaterSource: stringOrNull(value.integritySpeedThroughWaterSource),
+    integrityCurrentSource: stringOrNull(value.integrityCurrentSource),
+    integrityLeewaySource: stringOrNull(value.integrityLeewaySource),
+    referenceKind: stringOrNull(value.referenceKind),
+    referenceSource: stringOrNull(value.referenceSource),
+    referenceMethod: stringOrNull(value.referenceMethod),
+    referenceAgeSeconds: finiteOrNull(value.referenceAgeSeconds),
+    referenceUncertaintyDegrees: finiteOrNull(value.referenceUncertaintyDegrees),
+    referenceGpsDependent: booleanOrNull(value.referenceGpsDependent),
     plotType: normalizePlotType(value.plotType),
     note: stringOrNull(value.note),
     lastTrustedFixAgeSeconds: finiteOrNull(value.lastTrustedFixAgeSeconds),
@@ -718,9 +809,18 @@ function stringOrNull(value) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function longStringOrNull(value) {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 500) : null;
+}
+
 function finiteOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function booleanOrNull(value) {
+  return typeof value === "boolean" ? value : null;
 }
 
 function normalizePlotType(value) {
@@ -749,6 +849,8 @@ async function savePlotIntervalSetting() {
 
 function createPlotFix(state, automatic, plotType = automatic ? "timed" : "manual") {
   const operationalDr = state?.operationalDeadReckoning || state?.deadReckoning || {};
+  const integrityDr = state?.integrityDeadReckoning || {};
+  const reference = navigationReferenceSummary(state);
   const position = ownshipFollowPosition(state);
   if (!position) return null;
   const lastTrustedPosition = state?.lastTrustedFix?.position || null;
@@ -764,6 +866,36 @@ function createPlotFix(state, automatic, plotType = automatic ? "timed" : "manua
     trust: state?.trust || null,
     drSource: operationalDr.source || null,
     uncertaintyRadiusMeters: operationalDr.uncertaintyRadiusMeters ?? null,
+    drGpsDependent: operationalDr.gpsDependent,
+    drLeewayStatus: operationalDr.leewayStatus || null,
+    drCurrentOrigin: operationalDr.currentOrigin || null,
+    drHeadingSource: provenanceSource(operationalDr.provenance?.heading),
+    drTrackThroughWaterSource: provenanceSource(operationalDr.provenance?.trackThroughWater),
+    drSpeedThroughWaterSource: provenanceSource(operationalDr.provenance?.speedThroughWater),
+    drCurrentSource: provenanceSource(operationalDr.provenance?.current),
+    drLeewaySource: provenanceSource(operationalDr.provenance?.leeway),
+    integritySource: integrityDr.source || null,
+    integrityAssurance: integrityDr.assurance || state?.integrityAssurance?.status || null,
+    integrityComparisonAvailable:
+      integrityDr.comparisonAvailable ?? state?.integrityAssurance?.comparisonAvailable,
+    integrityUnavailableReason:
+      integrityDr.unavailableReason || state?.integrityAssurance?.reason || null,
+    integrityAgeSeconds: integrityDr.ageSeconds ?? null,
+    integrityUncertaintyRadiusMeters: integrityDr.uncertaintyRadiusMeters ?? null,
+    integrityGpsDependent: integrityDr.gpsDependent,
+    integrityLeewayStatus: integrityDr.leewayStatus || state?.integrityAssurance?.leewayStatus || null,
+    integrityCurrentOrigin: integrityDr.currentOrigin || null,
+    integrityHeadingSource: provenanceSource(integrityDr.provenance?.heading),
+    integrityTrackThroughWaterSource: provenanceSource(integrityDr.provenance?.trackThroughWater),
+    integritySpeedThroughWaterSource: provenanceSource(integrityDr.provenance?.speedThroughWater),
+    integrityCurrentSource: provenanceSource(integrityDr.provenance?.current),
+    integrityLeewaySource: provenanceSource(integrityDr.provenance?.leeway),
+    referenceKind: reference.kind,
+    referenceSource: reference.source,
+    referenceMethod: reference.method,
+    referenceAgeSeconds: reference.ageSeconds,
+    referenceUncertaintyDegrees: reference.uncertaintyDegrees,
+    referenceGpsDependent: reference.gpsDependent,
     lastTrustedFixAgeSeconds: Number.isFinite(lastTrustedMs) && Number.isFinite(timestampMs)
       ? Math.max(0, (timestampMs - lastTrustedMs) / 1000)
       : operationalDr.ageSeconds ?? null,
@@ -969,13 +1101,30 @@ function plotFixPopupHtml(plotFix) {
         ${popupRow("Position", formatPosition(plotFix.position))}
         ${plotFix.note ? popupRow("Note", plotFix.note) : ""}
         ${popupRow("GPS status", plotFix.trust ? plotFix.trust.toUpperCase() : "n/a")}
-        ${popupRow("DR source", plotFix.drSource || "n/a")}
-        ${popupRow("Uncertainty", formatMeters(plotFix.uncertaintyRadiusMeters))}
+        ${popupRow("Reference kind", plotFix.referenceKind || "n/a")}
+        ${popupRow("Reference source", plotFix.referenceSource || "n/a")}
+        ${popupRow("Reference age", formatAgeValue(plotFix.referenceAgeSeconds))}
+        ${popupRow("Reference uncertainty", formatAngleUncertainty(plotFix.referenceUncertaintyDegrees))}
+        ${popupRow("Reference dependence", formatDependency(plotFix.referenceGpsDependent))}
+        ${popupRow("Operational DR source", plotFix.drSource || "n/a")}
+        ${popupRow("Operational dependence", formatDependency(plotFix.drGpsDependent))}
+        ${popupRow("Operational leeway", plotFix.drLeewayStatus || "unknown")}
+        ${popupRow("Operational current origin", plotFix.drCurrentOrigin || "n/a")}
+        ${popupRow("Operational provenance", formatPlotFixProvenance(plotFix))}
+        ${popupRow("Operational uncertainty", formatMeters(plotFix.uncertaintyRadiusMeters))}
+        ${popupRow("Integrity source", plotFix.integritySource || "n/a")}
+        ${popupRow("Integrity assurance", plotFix.integrityAssurance || "unavailable")}
+        ${popupRow("Integrity comparison", formatComparison(plotFix.integrityComparisonAvailable))}
+        ${plotFix.integrityUnavailableReason ? popupRow("Integrity reason", plotFix.integrityUnavailableReason) : ""}
+        ${popupRow("Integrity uncertainty", formatMeters(plotFix.integrityUncertaintyRadiusMeters))}
+        ${popupRow("Integrity leeway", plotFix.integrityLeewayStatus || "unknown")}
+        ${popupRow("Integrity current origin", plotFix.integrityCurrentOrigin || "n/a")}
+        ${popupRow("Integrity provenance", formatIntegrityPlotFixProvenance(plotFix))}
         ${popupRow("Last trusted GPS", formatAge(plotFix.lastTrustedFixAgeSeconds))}
         ${popupRow("DR distance since GPS", formatDistance(plotFix.distanceFromLastTrustedFixMeters))}
         ${popupRow("STW / heading", `${formatKnots(plotFix.stwMps)} / ${formatDegrees(plotFix.headingTrueDegrees)}`)}
         ${popupRow("SOG / COG", `${formatKnots(plotFix.sogMps)} / ${formatDegrees(plotFix.cogTrueDegrees)}`)}
-        ${popupRow("Tide drift / set", `${formatKnots(plotFix.currentDriftMps)} / ${formatDegrees(plotFix.currentSetTrueDegrees)}`)}
+        ${popupRow(currentVectorLabel(plotFix.drCurrentOrigin), `${formatKnots(plotFix.currentDriftMps)} / ${formatDegrees(plotFix.currentSetTrueDegrees)}`)}
       </dl>
     </div>
   `;
@@ -1082,6 +1231,7 @@ function bearingDegrees(a, b) {
 }
 
 function radToDegrees(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   if (!Number.isFinite(number)) return null;
   return ((number * 180 / Math.PI) % 360 + 360) % 360;
@@ -1094,6 +1244,7 @@ function formatTime(timestamp) {
 }
 
 function formatAge(seconds) {
+  if (seconds === null || seconds === undefined || seconds === "") return "n/a";
   const number = Number(seconds);
   if (!Number.isFinite(number)) return "n/a";
   if (number < 90) return `${Math.round(number)} s ago`;
@@ -1106,11 +1257,13 @@ function formatPosition(position) {
 }
 
 function formatMeters(value) {
+  if (value === null || value === undefined || value === "") return "n/a";
   const number = Number(value);
   return Number.isFinite(number) ? `${Math.round(number)} m` : "n/a";
 }
 
 function formatDistance(value) {
+  if (value === null || value === undefined || value === "") return "n/a";
   const meters = Number(value);
   if (!Number.isFinite(meters)) return "n/a";
   if (meters < 1000) return `${Math.round(meters)} m`;
@@ -1118,13 +1271,116 @@ function formatDistance(value) {
 }
 
 function formatKnots(value) {
+  if (value === null || value === undefined || value === "") return "n/a";
   const number = Number(value);
   return Number.isFinite(number) ? `${(number * mpsToKnots).toFixed(1)} kn` : "n/a";
 }
 
 function formatDegrees(value) {
+  if (value === null || value === undefined || value === "") return "n/a";
   const number = Number(value);
   return Number.isFinite(number) ? `${Math.round(number)} deg` : "n/a";
+}
+
+function navigationReferenceSummary(state) {
+  const navigationReference = state?.navigationProvenance?.navigationReference;
+  const contractAccepted =
+    navigationReference?.contract === navigationReferenceContract &&
+    navigationReference?.schemaVersion === navigationReferenceSchemaVersion;
+  const reference = contractAccepted ? navigationReference.clockReference : null;
+  return {
+    kind: stringOrNull(reference?.kind),
+    source: stringOrNull(reference?.source),
+    method: stringOrNull(reference?.method),
+    ageSeconds: millisecondsToSeconds(reference?.ageMs),
+    uncertaintyDegrees: radiansMagnitudeToDegrees(reference?.uncertaintyRad),
+    gpsDependent: booleanOrNull(reference?.gpsDependent),
+  };
+}
+
+function provenanceSource(value) {
+  return stringOrNull(value?.source);
+}
+
+function millisecondsToSeconds(value) {
+  const milliseconds = finiteOrNull(value);
+  return milliseconds === null ? null : Math.max(0, milliseconds / 1000);
+}
+
+function radiansMagnitudeToDegrees(value) {
+  const radians = finiteOrNull(value);
+  return radians === null ? null : Math.abs(radians * 180 / Math.PI);
+}
+
+function formatAgeValue(seconds) {
+  if (seconds === null || seconds === undefined || seconds === "") return "n/a";
+  const number = Number(seconds);
+  return Number.isFinite(number) ? `${number < 10 ? number.toFixed(1) : Math.round(number)} s` : "n/a";
+}
+
+function formatAngleUncertainty(degrees) {
+  if (degrees === null || degrees === undefined || degrees === "") return "n/a";
+  const number = Number(degrees);
+  return Number.isFinite(number) ? `±${number.toFixed(1)} deg` : "n/a";
+}
+
+function formatDependency(value) {
+  if (value === true) return "GPS-dependent";
+  if (value === false) return "Independent";
+  return "Unknown";
+}
+
+function formatComparison(value) {
+  if (value === true) return "Active";
+  if (value === false) return "Not active";
+  return "Unknown";
+}
+
+function formatDrProvenance(dr) {
+  const provenance = dr?.provenance || {};
+  return formatProvenanceSources({
+    trackThroughWater: provenanceSource(provenance.trackThroughWater),
+    heading: provenanceSource(provenance.heading),
+    speedThroughWater: provenanceSource(provenance.speedThroughWater),
+    current: provenanceSource(provenance.current),
+    leeway: provenanceSource(provenance.leeway),
+  });
+}
+
+function formatPlotFixProvenance(plotFix) {
+  return formatProvenanceSources({
+    trackThroughWater: plotFix.drTrackThroughWaterSource,
+    heading: plotFix.drHeadingSource,
+    speedThroughWater: plotFix.drSpeedThroughWaterSource,
+    current: plotFix.drCurrentSource,
+    leeway: plotFix.drLeewaySource,
+  });
+}
+
+function formatIntegrityPlotFixProvenance(plotFix) {
+  return formatProvenanceSources({
+    trackThroughWater: plotFix.integrityTrackThroughWaterSource,
+    heading: plotFix.integrityHeadingSource,
+    speedThroughWater: plotFix.integritySpeedThroughWaterSource,
+    current: plotFix.integrityCurrentSource,
+    leeway: plotFix.integrityLeewaySource,
+  });
+}
+
+function formatProvenanceSources(value) {
+  const parts = [
+    value.trackThroughWater ? `water track ${value.trackThroughWater}` : null,
+    !value.trackThroughWater && value.heading ? `heading ${value.heading}` : null,
+    value.speedThroughWater ? `STW ${value.speedThroughWater}` : null,
+    value.current ? `current ${value.current}` : null,
+    value.leeway ? `leeway ${value.leeway}` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "n/a";
+}
+
+function currentVectorLabel(origin) {
+  if (origin === "ground-minus-water-residual") return "Residual drift / set";
+  return origin ? "Current drift / set" : "Current/residual drift / set";
 }
 
 function escapeHtml(value) {

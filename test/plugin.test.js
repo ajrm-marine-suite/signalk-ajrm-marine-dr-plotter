@@ -165,7 +165,8 @@ test("web app renders lost GPS plot fixes as estimated positions", () => {
   assert.match(css, /left: 14px/);
   assert.match(css, /top: 14px/);
   assert.match(css, /transform: translate\(-50%, -50%\)/);
-  assert.match(app, /Tide drift \/ set/);
+  assert.match(app, /Current\/residual drift \/ set/);
+  assert.doesNotMatch(app, /Tide drift \/ set/);
 });
 
 test("web app includes Display-style GPS status LED", () => {
@@ -186,6 +187,7 @@ test("web app hides the independent DR uncertainty circle", () => {
   const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
 
   assert.match(app, /addPoint\(integrityPosition, "integrity-dr", "IDR"\)/);
+  assert.match(app, /integrityDeadReckoning\?\.comparisonAvailable === false/);
   assert.doesNotMatch(app, /radius: integrityDr\.uncertaintyRadiusMeters/);
 });
 
@@ -222,10 +224,50 @@ test("server creates a GPS-return fix from the returned GPS coordinate", () => {
         position: { latitude: 56.3, longitude: -5.6 },
         source: "heading-stw-current",
         uncertaintyRadiusMeters: 120,
+        gpsDependent: false,
+        leewayStatus: "known",
+        currentOrigin: "independent-tidal-model",
+        provenance: {
+          trackThroughWater: { source: "compass.one+leeway-model" },
+          speedThroughWater: { source: "water-log.one" },
+          current: { source: "tidal-model.one" },
+          leeway: { source: "leeway-model" },
+        },
+      },
+      integrityDeadReckoning: {
+        position: { latitude: 56.29, longitude: -5.59 },
+        source: "heading-stw-independent-current",
+        assurance: "full",
+        comparisonAvailable: true,
+        ageSeconds: 45,
+        uncertaintyRadiusMeters: 80,
+        gpsDependent: false,
+        leewayStatus: "known",
+        currentOrigin: "independent-tidal-model",
+        provenance: {
+          trackThroughWater: { source: "compass.one+leeway-model" },
+          speedThroughWater: { source: "water-log.one" },
+          current: { source: "tidal-model.one" },
+          leeway: { source: "leeway-model" },
+        },
       },
       lastTrustedFix: {
         timestamp: "2026-06-29T18:50:00.000Z",
         position: { latitude: 56.19, longitude: -5.49 },
+      },
+      navigationProvenance: {
+        navigationReference: {
+          contract: "ajrm-marine-navigation-reference",
+          schemaVersion: 1,
+          clockReference: {
+            kind: "heading",
+            source: "compass.one",
+            method: "direct-true-heading",
+            ageMs: 1500,
+            uncertaintyRad: 5 * Math.PI / 180,
+            gpsDependent: false,
+          },
+        },
       },
       vectors: {
         courseOverGround: { speedMps: 2, bearingTrueDegrees: 90 },
@@ -239,6 +281,69 @@ test("server creates a GPS-return fix from the returned GPS coordinate", () => {
   assert.deepEqual(fix.position, { latitude: 56.2, longitude: -5.5 });
   assert.equal(fix.cogTrueDegrees, 90);
   assert.equal(fix.distanceFromLastTrustedFixMeters > 0, true);
+  assert.equal(fix.drGpsDependent, false);
+  assert.equal(fix.drCurrentOrigin, "independent-tidal-model");
+  assert.equal(fix.drTrackThroughWaterSource, "compass.one+leeway-model");
+  assert.equal(fix.integrityAssurance, "full");
+  assert.equal(fix.integrityComparisonAvailable, true);
+  assert.equal(fix.integrityUncertaintyRadiusMeters, 80);
+  assert.equal(fix.integrityCurrentSource, "tidal-model.one");
+  assert.equal(fix.referenceKind, "heading");
+  assert.equal(fix.referenceSource, "compass.one");
+  assert.equal(fix.referenceAgeSeconds, 1.5);
+  assert.equal(Math.round(fix.referenceUncertaintyDegrees), 5);
+  assert.equal(fix.referenceGpsDependent, false);
+  const persisted = pluginFactory._private.normalizePlotFix(fix);
+  assert.equal(persisted.integrityCurrentSource, "tidal-model.one");
+  assert.equal(persisted.referenceKind, "heading");
+  assert.equal(persisted.resource.feature.properties.integrityCurrentSource, "tidal-model.one");
+  assert.equal(persisted.resource.feature.properties.referenceMethod, "direct-true-heading");
+});
+
+test("summarizes explicit Navigation Reference context without inventing missing values", () => {
+  const summary = pluginFactory._private.navigationReferenceSummary({
+    navigationProvenance: {
+      navigationReference: {
+        contract: "ajrm-marine-navigation-reference",
+        schemaVersion: 1,
+        clockReference: {
+          kind: "track-proxy",
+          source: "gps.one",
+          method: "moving-course-over-ground-proxy",
+          ageMs: 2500,
+          uncertaintyRad: 10 * Math.PI / 180,
+          gpsDependent: true,
+        },
+      },
+    },
+  });
+
+  assert.equal(summary.kind, "track-proxy");
+  assert.equal(summary.source, "gps.one");
+  assert.equal(summary.method, "moving-course-over-ground-proxy");
+  assert.equal(summary.ageSeconds, 2.5);
+  assert.equal(Math.round(summary.uncertaintyDegrees), 10);
+  assert.equal(summary.gpsDependent, true);
+  assert.deepEqual(pluginFactory._private.navigationReferenceSummary({}), {
+    kind: null,
+    source: null,
+    method: null,
+    ageSeconds: null,
+    uncertaintyDegrees: null,
+    gpsDependent: null,
+  });
+  assert.equal(
+    pluginFactory._private.navigationReferenceSummary({
+      navigationProvenance: {
+        navigationReference: {
+          contract: "ajrm-marine-navigation-reference",
+          schemaVersion: 2,
+          clockReference: { kind: "heading", source: "unaccepted.future.contract" },
+        },
+      },
+    }).source,
+    null,
+  );
 });
 
 test("server treats GPS return as usable when acceptedGps is omitted but position is present", () => {
@@ -301,6 +406,23 @@ test("server creates operational track points from GPS Integrity state", () => {
     operationalDeadReckoning: {
       position: { latitude: 56.21, longitude: -5.51 },
       source: "gps-locked",
+      uncertaintyRadiusMeters: 10,
+      gpsDependent: true,
+      leewayStatus: "unknown",
+      currentOrigin: "ground-minus-water-residual",
+    },
+    navigationProvenance: {
+      navigationReference: {
+        contract: "ajrm-marine-navigation-reference",
+        schemaVersion: 1,
+        clockReference: {
+          kind: "track-proxy",
+          source: "gps.one",
+          ageMs: 500,
+          uncertaintyRad: Math.PI / 18,
+          gpsDependent: true,
+        },
+      },
     },
   });
 
@@ -310,6 +432,15 @@ test("server creates operational track points from GPS Integrity state", () => {
     timestamp: "2026-06-30T15:34:00.000Z",
     trust: "normal",
     source: "gps-locked",
+    uncertaintyRadiusMeters: 10,
+    gpsDependent: true,
+    leewayStatus: "unknown",
+    currentOrigin: "ground-minus-water-residual",
+    referenceKind: "track-proxy",
+    referenceSource: "gps.one",
+    referenceAgeSeconds: 0.5,
+    referenceUncertaintyDegrees: 10,
+    referenceGpsDependent: true,
   });
 });
 
@@ -338,6 +469,8 @@ test("normalizes operational track points for server persistence", () => {
   assert.equal(points[0].timestamp, "2026-06-30T15:34:00.000Z");
   assert.equal(points[1].timestamp, "2026-06-30T15:35:00.000Z");
   assert.equal(points[1].source, "heading-stw-current");
+  assert.equal(points[0].uncertaintyRadiusMeters, null);
+  assert.equal(points[0].gpsDependent, null);
 });
 
 test("server exposes plot fixes as resource-style fix features", () => {
@@ -348,6 +481,18 @@ test("server exposes plot fixes as resource-style fix features", () => {
     position: { latitude: 56.2, longitude: -5.5 },
     trust: "normal",
     uncertaintyRadiusMeters: 12,
+    drGpsDependent: false,
+    drLeewayStatus: "known",
+    drCurrentOrigin: "independent-tidal-model",
+    integritySource: "heading-stw-independent-current",
+    integrityAssurance: "full",
+    integrityComparisonAvailable: true,
+    integrityGpsDependent: false,
+    referenceKind: "heading",
+    referenceSource: "compass.one",
+    referenceAgeSeconds: 1.5,
+    referenceUncertaintyDegrees: 5,
+    referenceGpsDependent: false,
   });
 
   assert.equal(resource.id, "return");
@@ -358,6 +503,54 @@ test("server exposes plot fixes as resource-style fix features", () => {
   assert.equal(resource.feature.properties.symbol, "square-dot");
   assert.equal(resource.feature.properties.trust, "normal");
   assert.equal(resource.feature.properties.uncertaintyRadiusMeters, 12);
+  assert.equal(resource.feature.properties.drGpsDependent, false);
+  assert.equal(resource.feature.properties.drCurrentOrigin, "independent-tidal-model");
+  assert.equal(resource.feature.properties.integrityAssurance, "full");
+  assert.equal(resource.feature.properties.integrityComparisonAvailable, true);
+  assert.equal(resource.feature.properties.referenceKind, "heading");
+  assert.equal(resource.feature.properties.referenceSource, "compass.one");
+  assert.equal(resource.feature.properties.referenceGpsDependent, false);
+});
+
+test("missing plot-fix evidence stays unavailable while explicit zero remains zero", () => {
+  const integrityReason =
+    "Independent integrity comparison unavailable: missing independent true heading, independent speed through water, independent current, and leeway evidence.";
+  const [fix] = pluginFactory._private.normalizePlotFixes([
+    {
+      timestamp: "2026-07-27T12:00:00.000Z",
+      position: { latitude: 56.2, longitude: -5.5 },
+      stwMps: 0,
+      uncertaintyRadiusMeters: null,
+      integrityComparisonAvailable: false,
+      integrityUnavailableReason: integrityReason,
+    },
+  ]);
+
+  assert.equal(fix.stwMps, 0);
+  assert.equal(fix.uncertaintyRadiusMeters, null);
+  assert.equal(fix.cogTrueDegrees, null);
+  assert.equal(fix.referenceUncertaintyDegrees, null);
+  assert.equal(fix.integrityComparisonAvailable, false);
+  assert.equal(fix.integrityUnavailableReason, integrityReason);
+});
+
+test("web app exposes operational, integrity-assurance, and reference provenance separately", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+
+  assert.match(html, /id="referenceKind"/);
+  assert.match(html, /id="referenceUncertainty"/);
+  assert.match(html, /id="drDependency"/);
+  assert.match(html, /id="drLeeway"/);
+  assert.match(html, /id="integrityAssurance"/);
+  assert.match(html, /id="integrityComparison"/);
+  assert.match(html, /current\/residual origin/i);
+  assert.match(html, /independent integrity comparison DR/);
+  assert.match(app, /navigationProvenance\?\.navigationReference/);
+  assert.match(app, /navigationReference\?\.contract === navigationReferenceContract/);
+  assert.match(app, /formatDependency/);
+  assert.match(app, /formatDrProvenance/);
+  assert.match(app, /ground-minus-water-residual/);
 });
 
 test("web app reloads server-authored plot fixes when status changes", () => {

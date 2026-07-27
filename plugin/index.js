@@ -7,6 +7,8 @@ const packageInfo = require("../package.json");
 
 const PLUGIN_ID = "signalk-ajrm-marine-dr-plotter";
 const AJRM_MARINE_GPS_INTEGRITY_STATE_PATH = "plugins.ajrmMarineGpsIntegrity.navigationIntegrity";
+const NAVIGATION_REFERENCE_CONTRACT = "ajrm-marine-navigation-reference";
+const NAVIGATION_REFERENCE_SCHEMA_VERSION = 1;
 const DATA_DIRECTORY = path.join(os.homedir(), ".signalk", "plugin-config-data", PLUGIN_ID);
 const PLOT_FIXES_FILE = path.join(DATA_DIRECTORY, "plot-fixes.json");
 const OPERATIONAL_TRACK_FILE = path.join(DATA_DIRECTORY, "operational-track.json");
@@ -516,11 +518,21 @@ function trackPointFromIntegrityState(state) {
   const position = ownshipFollowPosition(state);
   if (!position) return null;
   const operationalDr = state?.operationalDeadReckoning || state?.deadReckoning || {};
+  const reference = navigationReferenceSummary(state);
   return normalizeTrackPoint({
     ...position,
     timestamp: state?.timestamp || new Date().toISOString(),
     trust: state?.trust || null,
     source: operationalDr.source || null,
+    uncertaintyRadiusMeters: operationalDr.uncertaintyRadiusMeters ?? null,
+    gpsDependent: operationalDr.gpsDependent,
+    leewayStatus: operationalDr.leewayStatus || null,
+    currentOrigin: operationalDr.currentOrigin || null,
+    referenceKind: reference.kind,
+    referenceSource: reference.source,
+    referenceAgeSeconds: reference.ageSeconds,
+    referenceUncertaintyDegrees: reference.uncertaintyDegrees,
+    referenceGpsDependent: reference.gpsDependent,
   });
 }
 
@@ -544,11 +556,22 @@ function normalizeTrackPoint(value) {
     timestamp,
     trust: typeof value.trust === "string" && value.trust.trim() ? value.trust.trim().slice(0, 40) : null,
     source: typeof value.source === "string" && value.source.trim() ? value.source.trim().slice(0, 80) : null,
+    uncertaintyRadiusMeters: finiteOrNull(value.uncertaintyRadiusMeters),
+    gpsDependent: booleanOrNull(value.gpsDependent),
+    leewayStatus: stringOrNull(value.leewayStatus),
+    currentOrigin: stringOrNull(value.currentOrigin),
+    referenceKind: stringOrNull(value.referenceKind),
+    referenceSource: stringOrNull(value.referenceSource),
+    referenceAgeSeconds: finiteOrNull(value.referenceAgeSeconds),
+    referenceUncertaintyDegrees: finiteOrNull(value.referenceUncertaintyDegrees),
+    referenceGpsDependent: booleanOrNull(value.referenceGpsDependent),
   };
 }
 
 function createPlotFixFromIntegrityState(state, automatic, plotType = automatic ? "timed" : "manual") {
   const operationalDr = state?.operationalDeadReckoning || state?.deadReckoning || {};
+  const integrityDr = state?.integrityDeadReckoning || {};
+  const reference = navigationReferenceSummary(state);
   const position = plotType === "gps-return"
     ? normalizePosition(state?.gps?.position)
     : ownshipFollowPosition(state);
@@ -566,6 +589,36 @@ function createPlotFixFromIntegrityState(state, automatic, plotType = automatic 
     trust: state?.trust || null,
     drSource: operationalDr.source || null,
     uncertaintyRadiusMeters: operationalDr.uncertaintyRadiusMeters ?? null,
+    drGpsDependent: operationalDr.gpsDependent,
+    drLeewayStatus: operationalDr.leewayStatus || null,
+    drCurrentOrigin: operationalDr.currentOrigin || null,
+    drHeadingSource: provenanceSource(operationalDr.provenance?.heading),
+    drTrackThroughWaterSource: provenanceSource(operationalDr.provenance?.trackThroughWater),
+    drSpeedThroughWaterSource: provenanceSource(operationalDr.provenance?.speedThroughWater),
+    drCurrentSource: provenanceSource(operationalDr.provenance?.current),
+    drLeewaySource: provenanceSource(operationalDr.provenance?.leeway),
+    integritySource: integrityDr.source || null,
+    integrityAssurance: integrityDr.assurance || state?.integrityAssurance?.status || null,
+    integrityComparisonAvailable:
+      integrityDr.comparisonAvailable ?? state?.integrityAssurance?.comparisonAvailable,
+    integrityUnavailableReason:
+      integrityDr.unavailableReason || state?.integrityAssurance?.reason || null,
+    integrityAgeSeconds: integrityDr.ageSeconds ?? null,
+    integrityUncertaintyRadiusMeters: integrityDr.uncertaintyRadiusMeters ?? null,
+    integrityGpsDependent: integrityDr.gpsDependent,
+    integrityLeewayStatus: integrityDr.leewayStatus || state?.integrityAssurance?.leewayStatus || null,
+    integrityCurrentOrigin: integrityDr.currentOrigin || null,
+    integrityHeadingSource: provenanceSource(integrityDr.provenance?.heading),
+    integrityTrackThroughWaterSource: provenanceSource(integrityDr.provenance?.trackThroughWater),
+    integritySpeedThroughWaterSource: provenanceSource(integrityDr.provenance?.speedThroughWater),
+    integrityCurrentSource: provenanceSource(integrityDr.provenance?.current),
+    integrityLeewaySource: provenanceSource(integrityDr.provenance?.leeway),
+    referenceKind: reference.kind,
+    referenceSource: reference.source,
+    referenceMethod: reference.method,
+    referenceAgeSeconds: reference.ageSeconds,
+    referenceUncertaintyDegrees: reference.uncertaintyDegrees,
+    referenceGpsDependent: reference.gpsDependent,
     lastTrustedFixAgeSeconds: Number.isFinite(lastTrustedMs) && Number.isFinite(timestampMs)
       ? Math.max(0, (timestampMs - lastTrustedMs) / 1000)
       : operationalDr.ageSeconds ?? null,
@@ -644,6 +697,34 @@ function normalizePlotFix(value) {
     trust: stringOrNull(value.trust),
     drSource: stringOrNull(value.drSource),
     uncertaintyRadiusMeters: finiteOrNull(value.uncertaintyRadiusMeters),
+    drGpsDependent: booleanOrNull(value.drGpsDependent),
+    drLeewayStatus: stringOrNull(value.drLeewayStatus),
+    drCurrentOrigin: stringOrNull(value.drCurrentOrigin),
+    drHeadingSource: stringOrNull(value.drHeadingSource),
+    drTrackThroughWaterSource: stringOrNull(value.drTrackThroughWaterSource),
+    drSpeedThroughWaterSource: stringOrNull(value.drSpeedThroughWaterSource),
+    drCurrentSource: stringOrNull(value.drCurrentSource),
+    drLeewaySource: stringOrNull(value.drLeewaySource),
+    integritySource: stringOrNull(value.integritySource),
+    integrityAssurance: stringOrNull(value.integrityAssurance),
+    integrityComparisonAvailable: booleanOrNull(value.integrityComparisonAvailable),
+    integrityUnavailableReason: longStringOrNull(value.integrityUnavailableReason),
+    integrityAgeSeconds: finiteOrNull(value.integrityAgeSeconds),
+    integrityUncertaintyRadiusMeters: finiteOrNull(value.integrityUncertaintyRadiusMeters),
+    integrityGpsDependent: booleanOrNull(value.integrityGpsDependent),
+    integrityLeewayStatus: stringOrNull(value.integrityLeewayStatus),
+    integrityCurrentOrigin: stringOrNull(value.integrityCurrentOrigin),
+    integrityHeadingSource: stringOrNull(value.integrityHeadingSource),
+    integrityTrackThroughWaterSource: stringOrNull(value.integrityTrackThroughWaterSource),
+    integritySpeedThroughWaterSource: stringOrNull(value.integritySpeedThroughWaterSource),
+    integrityCurrentSource: stringOrNull(value.integrityCurrentSource),
+    integrityLeewaySource: stringOrNull(value.integrityLeewaySource),
+    referenceKind: stringOrNull(value.referenceKind),
+    referenceSource: stringOrNull(value.referenceSource),
+    referenceMethod: stringOrNull(value.referenceMethod),
+    referenceAgeSeconds: finiteOrNull(value.referenceAgeSeconds),
+    referenceUncertaintyDegrees: finiteOrNull(value.referenceUncertaintyDegrees),
+    referenceGpsDependent: booleanOrNull(value.referenceGpsDependent),
     plotType: normalizePlotType(value.plotType),
     note: stringOrNull(value.note),
     lastTrustedFixAgeSeconds: finiteOrNull(value.lastTrustedFixAgeSeconds),
@@ -673,6 +754,34 @@ function normalizeFixResource(value) {
     note: stringOrNull(value?.note),
     drSource: stringOrNull(value?.drSource),
     uncertaintyRadiusMeters: finiteOrNull(value?.uncertaintyRadiusMeters),
+    drGpsDependent: booleanOrNull(value?.drGpsDependent),
+    drLeewayStatus: stringOrNull(value?.drLeewayStatus),
+    drCurrentOrigin: stringOrNull(value?.drCurrentOrigin),
+    drHeadingSource: stringOrNull(value?.drHeadingSource),
+    drTrackThroughWaterSource: stringOrNull(value?.drTrackThroughWaterSource),
+    drSpeedThroughWaterSource: stringOrNull(value?.drSpeedThroughWaterSource),
+    drCurrentSource: stringOrNull(value?.drCurrentSource),
+    drLeewaySource: stringOrNull(value?.drLeewaySource),
+    integritySource: stringOrNull(value?.integritySource),
+    integrityAssurance: stringOrNull(value?.integrityAssurance),
+    integrityComparisonAvailable: booleanOrNull(value?.integrityComparisonAvailable),
+    integrityUnavailableReason: longStringOrNull(value?.integrityUnavailableReason),
+    integrityAgeSeconds: finiteOrNull(value?.integrityAgeSeconds),
+    integrityUncertaintyRadiusMeters: finiteOrNull(value?.integrityUncertaintyRadiusMeters),
+    integrityGpsDependent: booleanOrNull(value?.integrityGpsDependent),
+    integrityLeewayStatus: stringOrNull(value?.integrityLeewayStatus),
+    integrityCurrentOrigin: stringOrNull(value?.integrityCurrentOrigin),
+    integrityHeadingSource: stringOrNull(value?.integrityHeadingSource),
+    integrityTrackThroughWaterSource: stringOrNull(value?.integrityTrackThroughWaterSource),
+    integritySpeedThroughWaterSource: stringOrNull(value?.integritySpeedThroughWaterSource),
+    integrityCurrentSource: stringOrNull(value?.integrityCurrentSource),
+    integrityLeewaySource: stringOrNull(value?.integrityLeewaySource),
+    referenceKind: stringOrNull(value?.referenceKind),
+    referenceSource: stringOrNull(value?.referenceSource),
+    referenceMethod: stringOrNull(value?.referenceMethod),
+    referenceAgeSeconds: finiteOrNull(value?.referenceAgeSeconds),
+    referenceUncertaintyDegrees: finiteOrNull(value?.referenceUncertaintyDegrees),
+    referenceGpsDependent: booleanOrNull(value?.referenceGpsDependent),
     lastTrustedFixAgeSeconds: finiteOrNull(value?.lastTrustedFixAgeSeconds),
     distanceFromLastTrustedFixMeters: finiteOrNull(value?.distanceFromLastTrustedFixMeters),
     stwMps: finiteOrNull(value?.stwMps),
@@ -749,9 +858,48 @@ function stringOrNull(value) {
   return typeof value === "string" && value.trim() ? value.trim().slice(0, 120) : null;
 }
 
+function longStringOrNull(value) {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 500) : null;
+}
+
 function finiteOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function booleanOrNull(value) {
+  return typeof value === "boolean" ? value : null;
+}
+
+function navigationReferenceSummary(state) {
+  const navigationReference = state?.navigationProvenance?.navigationReference;
+  const contractAccepted =
+    navigationReference?.contract === NAVIGATION_REFERENCE_CONTRACT &&
+    navigationReference?.schemaVersion === NAVIGATION_REFERENCE_SCHEMA_VERSION;
+  const reference = contractAccepted ? navigationReference.clockReference : null;
+  return {
+    kind: stringOrNull(reference?.kind),
+    source: stringOrNull(reference?.source),
+    method: stringOrNull(reference?.method),
+    ageSeconds: millisecondsToSeconds(reference?.ageMs),
+    uncertaintyDegrees: radiansMagnitudeToDegrees(reference?.uncertaintyRad),
+    gpsDependent: booleanOrNull(reference?.gpsDependent),
+  };
+}
+
+function provenanceSource(value) {
+  return stringOrNull(value?.source);
+}
+
+function millisecondsToSeconds(value) {
+  const milliseconds = finiteOrNull(value);
+  return milliseconds === null ? null : Math.max(0, milliseconds / 1000);
+}
+
+function radiansMagnitudeToDegrees(value) {
+  const radians = finiteOrNull(value);
+  return radians === null ? null : Math.abs(radians * 180 / Math.PI);
 }
 
 function getSelfPath(app, path) {
@@ -800,6 +948,7 @@ function finite(value, fallback) {
 }
 
 function radiansToDegrees(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? ((number * 180 / Math.PI) + 360) % 360 : null;
 }
@@ -830,6 +979,7 @@ module.exports._private = {
   normalizeOptions,
   normalizePlotFixIntervalMinutes,
   plotFixToResource,
+  navigationReferenceSummary,
   unwrapSignalKValue,
   writeJsonFileAtomic,
 };
