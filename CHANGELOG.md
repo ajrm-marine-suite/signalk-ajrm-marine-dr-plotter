@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.4
+
+- Make the status endpoint read-only so browser polling cannot act as a second
+  navigation-state recorder alongside the Signal K subscription.
+- Serialize automatic GPS-outage transition decisions with their persisted fix
+  writes, preventing concurrent recovery observations from recording duplicate
+  GPS-return fixes.
+- Reset the complete outage-transition state when the plugin stops.
+
 ## 0.6.3
 
 - Rebuild clickable navigator-fix popups immediately when the selected

@@ -30,6 +30,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
   let operationalTrackUpdatedAt = null;
   let timedPlotFixWritePending = false;
   let trackWritePending = false;
+  let automaticFixQueue = createSerialQueue();
 
   plugin.id = PLUGIN_ID;
   plugin.name = "AJRM Marine DR Plotter";
@@ -87,6 +88,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
   plugin.start = (pluginOptions = {}) => {
     options = normalizeOptions(pluginOptions, loadSettingsSync());
     startedAt = new Date().toISOString();
+    automaticFixQueue = createSerialQueue();
     subscribe();
     recordNavigationState(getSelfPath(app, AJRM_MARINE_GPS_INTEGRITY_STATE_PATH)).catch((error) => {
       app.error?.(`[${PLUGIN_ID}] startup navigation state record failed: ${error.stack || error.message}`);
@@ -106,7 +108,9 @@ module.exports = function ajrmMarineDrPlotter(app) {
     unsubscribes = [];
     startedAt = null;
     lastTrustState = null;
+    gpsOutageActive = false;
     gpsLostPlotFixRecordedFor = null;
+    automaticFixQueue = createSerialQueue();
     timedPlotFixWritePending = false;
     trackWritePending = false;
   };
@@ -242,9 +246,6 @@ module.exports = function ajrmMarineDrPlotter(app) {
 
   function status() {
     const integrity = getSelfPath(app, AJRM_MARINE_GPS_INTEGRITY_STATE_PATH) || null;
-    recordNavigationState(integrity).catch((error) => {
-      app.error?.(`[${PLUGIN_ID}] status navigation state record failed: ${error.stack || error.message}`);
-    });
     return {
       ok: true,
       plugin: PLUGIN_ID,
@@ -366,7 +367,11 @@ module.exports = function ajrmMarineDrPlotter(app) {
     }
   }
 
-  async function recordAutomaticFixes(state) {
+  function recordAutomaticFixes(state) {
+    return automaticFixQueue.run(() => recordAutomaticFixesLocked(state));
+  }
+
+  async function recordAutomaticFixesLocked(state) {
     const memory = { lastTrustState, gpsOutageActive, gpsLostPlotFixRecordedFor };
     const decision = automaticFixDecision(memory, state);
     if (decision.plotType) {
@@ -436,6 +441,17 @@ module.exports = function ajrmMarineDrPlotter(app) {
     });
   }
 };
+
+function createSerialQueue() {
+  let tail = Promise.resolve();
+  return {
+    run(operation) {
+      const run = tail.catch(() => {}).then(operation);
+      tail = run.catch(() => {});
+      return run;
+    },
+  };
+}
 
 function loadSettingsSync() {
   try {
@@ -975,6 +991,7 @@ module.exports._private = {
   normalizeTrackPoints,
   automaticFixDecision,
   recoveredGpsPositionAvailable,
+  createSerialQueue,
   trackPointFromIntegrityState,
   normalizeOptions,
   normalizePlotFixIntervalMinutes,

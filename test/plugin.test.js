@@ -396,6 +396,48 @@ test("automatic GPS outage fixes record one lost fix and one return fix per outa
   assert.equal(returned.next.gpsLostPlotFixRecordedFor, null);
 });
 
+test("concurrent GPS recovery observations serialize to one return fix", async () => {
+  const queue = pluginFactory._private.createSerialQueue();
+  const recorded = [];
+  let memory = {};
+  const record = (state) => queue.run(async () => {
+    const decision = pluginFactory._private.automaticFixDecision(memory, state);
+    if (decision.plotType) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      recorded.push(decision.plotType);
+    }
+    memory = decision.next;
+  });
+
+  await record({
+    timestamp: "2026-08-03T19:16:44.639Z",
+    trust: "lost",
+    lastTrustedFix: { timestamp: "2026-08-03T19:16:13.500Z" },
+  });
+  await Promise.all([
+    record({
+      timestamp: "2026-08-03T19:17:42.107Z",
+      trust: "normal",
+      gps: { position: { latitude: 56.2253, longitude: -5.56749 } },
+    }),
+    record({
+      timestamp: "2026-08-03T19:17:43.163Z",
+      trust: "normal",
+      gps: { position: { latitude: 56.22532, longitude: -5.56751 } },
+    }),
+  ]);
+
+  assert.deepEqual(recorded, ["gps-lost", "gps-return"]);
+  assert.equal(memory.gpsOutageActive, false);
+});
+
+test("status reporting does not record navigation state", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "plugin", "index.js"), "utf8");
+  const statusFunction = source.match(/function status\(\) \{[\s\S]*?\n  function publicSettings\(\)/)?.[0];
+  assert.ok(statusFunction);
+  assert.doesNotMatch(statusFunction, /recordNavigationState/);
+});
+
 test("server creates operational track points from GPS Integrity state", () => {
   const point = pluginFactory._private.trackPointFromIntegrityState({
     timestamp: "2026-06-30T15:34:00.000Z",
