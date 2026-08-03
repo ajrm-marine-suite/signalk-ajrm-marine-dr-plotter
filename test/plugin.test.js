@@ -596,6 +596,10 @@ test("web app shows live cursor latitude and longitude", () => {
   assert.match(app, /function bearingDegrees/);
   assert.match(app, /Range/);
   assert.match(app, /coordinateFormat = "dms"/);
+  assert.match(app, /ajrmMarineDrPlotterCoordinateFormat/);
+  assert.match(app, /applyCoordinateFormat/);
+  assert.match(html, /id="coordinateFormat"/);
+  assert.match(html, /Degrees decimal minutes/);
   assert.match(css, /\.cursor-position/);
 });
 

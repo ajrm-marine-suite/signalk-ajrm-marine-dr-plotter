@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.2
+
+- Add an immediate coordinate-format selector to the status drawer, using the
+  configured plugin format as its default and remembering the browser's local
+  choice.
+- Keep cursor, observed-fix, and popup latitude/longitude formatting aligned
+  across degrees/minutes/seconds, degrees/decimal-minutes, and decimal degrees.
+
 ## 0.6.1
 
 - Carry GPS Integrity's separate operational and integrity DR contracts into

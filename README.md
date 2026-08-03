@@ -2,6 +2,11 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
+Version `0.6.2` adds a live coordinate-format selector to the status drawer.
+The Signal K plugin setting remains the default, while each browser can choose
+and remember degrees/minutes/seconds, degrees/decimal-minutes, or decimal
+degrees without restarting the plugin.
+
 Version `0.5.28` publishes the same persistence status under
 `vessels.self.plugins.ajrmMarineDrPlotter` so Console BITE, Capture, and
 Snapshot can verify it from captured Signal K state.

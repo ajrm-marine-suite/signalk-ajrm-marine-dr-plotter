@@ -39,6 +39,7 @@ const elements = {
   integrityCurrentOrigin: document.querySelector("#integrityCurrentOrigin"),
   integrityProvenance: document.querySelector("#integrityProvenance"),
   hdop: document.querySelector("#hdop"),
+  coordinateFormat: document.querySelector("#coordinateFormat"),
   plotInterval: document.querySelector("#plotInterval"),
   plotNowDrawer: document.querySelector("#plotNowDrawer"),
   clearPlots: document.querySelector("#clearPlots"),
@@ -83,6 +84,11 @@ let plotFixSavePending = false;
 let lastPlotFixesUpdatedAt = null;
 let lastOperationalTrackUpdatedAt = null;
 let coordinateFormat = "dms";
+let coordinateFormatOverride = normalizeCoordinateFormat(
+  localStorage.getItem("ajrmMarineDrPlotterCoordinateFormat"),
+  null,
+);
+let lastCursorEvent = null;
 let manualFixPickMode = false;
 const maxTrackPoints = 7200;
 const maxPlotFixes = 1000;
@@ -213,12 +219,30 @@ function setOverlay(layer, enabled, storageKey) {
 }
 
 function updateCursorPosition(event) {
+  lastCursorEvent = event;
   const prefix = manualFixPickMode ? "Pick fix" : "Cursor";
   elements.cursorPosition.textContent = `${prefix} ${formatLatLon(event.latlng)}${cursorRangeText(event.latlng)}`;
 }
 
 function clearCursorPosition() {
+  lastCursorEvent = null;
   elements.cursorPosition.textContent = "Cursor --";
+}
+
+function normalizeCoordinateFormat(value, fallback = "dms") {
+  return ["dms", "degrees-minutes", "decimal"].includes(value)
+    ? value
+    : fallback;
+}
+
+function applyCoordinateFormat(value, { persist = true } = {}) {
+  coordinateFormat = normalizeCoordinateFormat(value);
+  elements.coordinateFormat.value = coordinateFormat;
+  if (persist) {
+    coordinateFormatOverride = coordinateFormat;
+    localStorage.setItem("ajrmMarineDrPlotterCoordinateFormat", coordinateFormat);
+  }
+  if (lastCursorEvent) updateCursorPosition(lastCursorEvent);
 }
 
 function formatLatLon(latlng) {
@@ -1448,7 +1472,10 @@ function classifyGpsStatus(state) {
 async function refreshStatus() {
   try {
     latestStatus = await requestJson(`${apiBase}/status`);
-    coordinateFormat = latestStatus.coordinateFormat || "dms";
+    applyCoordinateFormat(
+      coordinateFormatOverride || latestStatus.coordinateFormat || "dms",
+      { persist: false },
+    );
     if (
       latestStatus.plotFixIntervalMinutes != null &&
       document.activeElement !== elements.plotInterval
@@ -1494,6 +1521,9 @@ elements.prunePlotFixes.addEventListener("click", pruneOldPlotFixes);
 elements.plotInterval.addEventListener("change", () => {
   updatePlotStatus();
   savePlotIntervalSetting();
+});
+elements.coordinateFormat.addEventListener("change", () => {
+  applyCoordinateFormat(elements.coordinateFormat.value);
 });
 for (const choice of elements.baseMapChoices) {
   choice.addEventListener("change", () => setBaseMap(choice.value));
