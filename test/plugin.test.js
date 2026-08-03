@@ -603,6 +603,15 @@ test("web app shows live cursor latitude and longitude", () => {
   assert.match(css, /\.cursor-position/);
 });
 
+test("coordinate-format changes refresh clickable plot-fix popups", () => {
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+
+  assert.match(app, /const formatChanged = coordinateFormat !== nextCoordinateFormat/);
+  assert.match(app, /if \(formatChanged && plotFixesLoaded\) redrawPlotFixes\(\)/);
+  assert.match(app, /marker\.bindPopup\(\(\) => plotFixPopupHtml\(plotFix\)/);
+  assert.match(app, /popupRow\("Position", formatPosition\(plotFix\.position\)\)/);
+});
+
 test("web app exposes a debugging clear-all-plots control", () => {
   const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
   const app = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");

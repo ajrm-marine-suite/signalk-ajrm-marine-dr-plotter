@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.3
+
+- Rebuild clickable navigator-fix popups immediately when the selected
+  latitude/longitude format changes.
+- Generate popup content when it is opened so a fix always uses the current
+  browser coordinate-format selection rather than stale formatted text.
+
 ## 0.6.2
 
 - Add an immediate coordinate-format selector to the status drawer, using the

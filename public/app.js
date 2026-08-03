@@ -236,13 +236,16 @@ function normalizeCoordinateFormat(value, fallback = "dms") {
 }
 
 function applyCoordinateFormat(value, { persist = true } = {}) {
-  coordinateFormat = normalizeCoordinateFormat(value);
+  const nextCoordinateFormat = normalizeCoordinateFormat(value);
+  const formatChanged = coordinateFormat !== nextCoordinateFormat;
+  coordinateFormat = nextCoordinateFormat;
   elements.coordinateFormat.value = coordinateFormat;
   if (persist) {
     coordinateFormatOverride = coordinateFormat;
     localStorage.setItem("ajrmMarineDrPlotterCoordinateFormat", coordinateFormat);
   }
   if (lastCursorEvent) updateCursorPosition(lastCursorEvent);
+  if (formatChanged && plotFixesLoaded) redrawPlotFixes();
 }
 
 function formatLatLon(latlng) {
@@ -1091,7 +1094,7 @@ function redrawPlotFixes() {
         popupAnchor: [0, -18],
       }),
     });
-    marker.bindPopup(plotFixPopupHtml(plotFix), { maxWidth: 320 });
+    marker.bindPopup(() => plotFixPopupHtml(plotFix), { maxWidth: 320 });
     marker.addTo(plotFixLayer);
     L.marker(latlng, {
       interactive: false,
