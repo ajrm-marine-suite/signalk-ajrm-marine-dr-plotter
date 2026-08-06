@@ -2,6 +2,10 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
+Version `0.6.5` adopts the shared AJRM Marine map controls: Display-style
+basemap and overlay selection, nested Charts Provider Simple folder toggles,
+and a chart-cycle button when multiple enabled charts overlap the map centre.
+
 Version `0.6.4` keeps status polling read-only and serializes automatic GPS
 outage transitions so one recovery produces exactly one GPS-return fix. It also
 keeps clickable navigator-fix popup positions synchronised with the active

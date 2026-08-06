@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>AJRM Marine DR Plotter</title>
     <link rel="stylesheet" href="./leaflet.css">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./ajrm-map-core.css?v=0.6.2">
+    <link rel="stylesheet" href="./styles.css?v=0.6.5">
   </head>
   <body>
     <div id="map" class="map" aria-label="Dead-reckoning chart"></div>
@@ -32,7 +33,7 @@
         <button id="toggleStatus" class="map-control-button" type="button" title="Status" aria-label="Status" aria-pressed="true">
           <span class="control-icon status-icon" aria-hidden="true"></span>
         </button>
-        <button id="toggleCharts" class="map-control-button" type="button" title="Charts" aria-label="Charts" aria-pressed="false">
+        <button id="toggleCharts" class="map-control-button" type="button" title="Charts" aria-label="Charts" aria-pressed="false" hidden>
           <svg class="control-icon chart-icon" viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor" focusable="false" aria-hidden="true">
             <path d="M8.235 1.559a.5.5 0 0 0-.47 0l-7.5 4a.5.5 0 0 0 0 .882l7.5 4a.5.5 0 0 0 .47 0l7.5-4a.5.5 0 0 0 0-.882z"/>
             <path d="m2.125 8.567-1.86.992a.5.5 0 0 0 0 .882l7.5 4a.5.5 0 0 0 .47 0l7.5-4a.5.5 0 0 0 0-.882l-1.86-.992-5.17 2.756a1.5 1.5 0 0 1-1.41 0z"/>
@@ -173,7 +174,7 @@
       </div>
     </aside>
 
-    <aside id="chartDrawer" class="drawer drawer-right" aria-label="Charts">
+    <aside id="chartDrawer" class="drawer drawer-right" aria-label="Charts" hidden>
       <div class="drawer-header">
         <div>
           <h2>Charts</h2>
@@ -199,6 +200,6 @@
     <div id="cursorPosition" class="cursor-position" aria-live="polite">Cursor --</div>
     <script src="./leaflet.js"></script>
     <script src="./protomaps-leaflet.js"></script>
-    <script src="./app.js"></script>
+    <script type="module" src="./app.js?v=0.6.5"></script>
   </body>
 </html>

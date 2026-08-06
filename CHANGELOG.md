@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.5
+
+- Replace the separate chart drawer with the shared Display-style map control.
+- Add nested Charts Provider Simple folder enable/disable controls beneath
+  Auto Charts.
+- Add overlap cycling using the shared Display chart-ranking contract.
+
 ## 0.6.4
 
 - Make the status endpoint read-only so browser polling cannot act as a second
