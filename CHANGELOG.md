@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.11
+
+- Keep the chart-folder list inside short browser windows and make the selector
+  reliably scrollable with mouse, touch and iPadOS momentum scrolling.
+
 ## 0.6.10
 
 - Cycle overlapping charts with Display's selected browser keyboard shortcut,

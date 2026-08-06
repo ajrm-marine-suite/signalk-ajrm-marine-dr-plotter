@@ -19,8 +19,8 @@ test("map page uses the standard left-side controls with zoom first", async () =
     readFile(new URL("../public/app.js", import.meta.url), "utf8"),
     readFile(new URL("../public/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /ajrm-map-core\.css\?v=0\.6\.7/);
-  assert.match(html, /type="module" src="\.\/app\.js\?v=0\.6\.10"/);
+  assert.match(html, /ajrm-map-core\.css\?v=0\.6\.8/);
+  assert.match(html, /type="module" src="\.\/app\.js\?v=0\.6\.11"/);
   assert.match(html, /<header class="topbar" hidden>/);
   assert.match(html, /id="toggleStatus"[^>]+aria-pressed="false"/);
   assert.match(html, /id="statusDrawer" class="drawer drawer-left"/);
@@ -29,10 +29,12 @@ test("map page uses the standard left-side controls with zoom first", async () =
   assert.match(css, /\.drawer-left\s*\{[^}]*left:\s*52px/s);
   assert.match(css, /\.chart-cycle-status\s*\{/);
   assert.match(await readFile(new URL("../public/ajrm-map-core.css", import.meta.url), "utf8"), /\.ajrm-map-actions\{display:flex;flex-direction:column;gap:10px/);
+  assert.match(await readFile(new URL("../public/ajrm-map-core.css", import.meta.url), "utf8"), /\.ajrm-map-panel\{[^}]*overflow-x:hidden;[^}]*touch-action:pan-y/);
   assert.match(app, /L\.map\(elements\.map, \{ zoomControl: true \}\)/);
   assert.match(app, /MapCore\.createChartSelectorControl/);
   assert.match(app, /MapCore\.createChartCycleControl/);
   assert.match(await readFile(new URL("../public/ajrm-map-core.mjs", import.meta.url), "utf8"), /CHART_CYCLE_SHORTCUT_STORAGE_KEY = "chartCycleShortcut"/);
+  assert.match(await readFile(new URL("../public/ajrm-map-core.mjs", import.meta.url), "utf8"), /export function floatingPanelHeight/);
   assert.match(app, /MapCore\.createActionToolbarControl/);
   assert.match(app, /function showChartCycleStatus\(\)/);
   assert.match(app, /Automatic chart:/);

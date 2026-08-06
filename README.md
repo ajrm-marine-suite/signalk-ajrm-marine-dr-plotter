@@ -2,6 +2,10 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
+Version `0.6.11` keeps chart folders reachable in short browser windows by
+measuring the selector's remaining viewport height and enabling contained
+mouse/touch scrolling through Map Core `0.6.8`.
+
 Version `0.6.10` cycles overlapping charts with Display's selected keyboard
 shortcut (`C` by default), using the shared browser setting from Map Core
 `0.6.7`.
