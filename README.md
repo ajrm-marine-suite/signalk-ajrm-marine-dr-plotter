@@ -2,6 +2,9 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
+Version `0.6.9` matches Display's map toolbar button size, shared icons and
+uniform spacing through Map Core `0.6.5`.
+
 Version `0.6.8` shows the selected chart in a temporary top-centre status box
 after each chart-cycle action, matching Display.
 

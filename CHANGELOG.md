@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.9
+
+- Match Display's map toolbar with 38 px buttons, larger shared SVG icons and
+  uniform 10 px spacing between every control.
+
 ## 0.6.8
 
 - Show Display-style top-centre confirmation after cycling an overlapping

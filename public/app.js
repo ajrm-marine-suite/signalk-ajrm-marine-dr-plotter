@@ -1,4 +1,4 @@
-import * as MapCore from "./ajrm-map-core.mjs?v=0.6.4";
+import * as MapCore from "./ajrm-map-core.mjs?v=0.6.5";
 
 const apiBase = "/plugins/signalk-ajrm-marine-dr-plotter";
 const gpsIntegrityApiBase = "/plugins/signalk-ajrm-marine-gps-integrity";
