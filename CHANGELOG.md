@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.13
+
+- Add visible hover/focus help to zoom, chart and DR Plotter map icons through
+  AJRM Marine Map Core 0.6.11.
+
 ## 0.6.12
 
 - Use Map Core's shared top-centre chart-cycle status implementation rather

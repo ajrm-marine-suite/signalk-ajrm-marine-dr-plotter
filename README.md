@@ -2,6 +2,9 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
+Version `0.6.13` adds visible hover/focus help to every map control icon,
+including zoom, chart selection, chart cycling and DR Plotter actions.
+
 Version `0.6.12` uses Map Core's shared top-centre chart-cycle status
 implementation, also used by Voyage Viewer and Harbour Editor.
 

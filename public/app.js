@@ -1,4 +1,4 @@
-import * as MapCore from "./ajrm-map-core.mjs?v=0.6.9";
+import * as MapCore from "./ajrm-map-core.mjs?v=0.6.11";
 
 const apiBase = "/plugins/signalk-ajrm-marine-dr-plotter";
 const gpsIntegrityApiBase = "/plugins/signalk-ajrm-marine-gps-integrity";
@@ -136,6 +136,7 @@ function initMap(defaults = {}) {
   const lon = Number(defaults.longitude) || -5.56;
   const zoom = Number(defaults.zoom) || 11;
   map = L.map(elements.map, { zoomControl: true }).setView([lat, lon], zoom);
+  MapCore.labelLeafletZoomControls(map);
   const naturalEarth = makeNaturalEarthLayer();
   const empty = L.tileLayer("");
   const openStreetMap = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
