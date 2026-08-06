@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.12
+
+- Use Map Core's shared top-centre chart-cycle status implementation rather
+  than maintaining a DR Plotter-specific copy.
+
 ## 0.6.11
 
 - Keep the chart-folder list inside short browser windows and make the selector

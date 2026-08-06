@@ -1,4 +1,4 @@
-import * as MapCore from "./ajrm-map-core.mjs?v=0.6.8";
+import * as MapCore from "./ajrm-map-core.mjs?v=0.6.9";
 
 const apiBase = "/plugins/signalk-ajrm-marine-dr-plotter";
 const gpsIntegrityApiBase = "/plugins/signalk-ajrm-marine-gps-integrity";
@@ -72,7 +72,6 @@ let autoChartFallbackLayer;
 let autoChartId;
 let autoChartList = [];
 let chartCycle = null;
-let chartCycleStatusTimer = null;
 let mapActionToolbar = null;
 let chartResourcesLoaded = false;
 let chartResourcesLoading = null;
@@ -206,10 +205,8 @@ function installCommonChartSelector() {
     L,
     map,
     getCharts: () => autoChartList,
-    onChange: () => {
-      updateAutoChart();
-      showChartCycleStatus();
-    },
+    onChange: updateAutoChart,
+    statusElement: elements.chartCycleStatus,
   }).addTo();
   mapActionToolbar = MapCore.createActionToolbarControl({
     L,
@@ -518,37 +515,6 @@ function updateAutoChart() {
   autoChartId = chart.__autoChartId;
   if (autoChartLayer) autoChartGroup.addLayer(autoChartLayer);
   keepChartLayersOnTop();
-}
-
-function chartDisplayName(chart) {
-  return chart?.name || chart?.title || chart?.description || chart?.__ajrmMapChartId || chart?.__autoChartId || "Unnamed chart";
-}
-
-function showChartCycleStatus() {
-  if (!elements.chartCycleStatus || !map || !chartCycle) return;
-  const selected = chooseAutoChart();
-  let message = "No enabled chart covers the map centre";
-  if (selected) {
-    const centre = map.getCenter();
-    const candidates = MapCore.chartCandidates(autoChartList, {
-      lat: centre.lat,
-      lng: centre.lng,
-      zoom: map.getZoom(),
-      maxZoom: map.getMaxZoom(),
-    });
-    if (chartCycle.manualChartId) {
-      const index = candidates.findIndex((chart) => MapCore.chartId(chart) === chartCycle.manualChartId);
-      message = `Chart ${Math.max(0, index) + 1} of ${candidates.length}: ${chartDisplayName(selected)}`;
-    } else {
-      message = `Automatic chart: ${chartDisplayName(selected)}`;
-    }
-  }
-  elements.chartCycleStatus.textContent = message;
-  elements.chartCycleStatus.hidden = false;
-  if (chartCycleStatusTimer != null) clearTimeout(chartCycleStatusTimer);
-  chartCycleStatusTimer = setTimeout(() => {
-    elements.chartCycleStatus.hidden = true;
-  }, 3500);
 }
 
 function keepChartLayersOnTop() {

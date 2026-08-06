@@ -54,23 +54,6 @@ body {
   pointer-events: none;
 }
 
-.chart-cycle-status {
-  max-width: min(92vw, 38rem);
-  padding: 6px 10px;
-  border: 1px solid #93c5fd;
-  border-radius: 6px;
-  background: rgb(219 234 254 / 96%);
-  color: #1e3a8a;
-  box-shadow: 0 2px 8px rgb(15 23 42 / 20%);
-  font-size: 0.875rem;
-  font-weight: 700;
-  text-align: center;
-}
-
-.chart-cycle-status[hidden] {
-  display: none;
-}
-
 .topbar {
   position: fixed;
   z-index: 1000;
