@@ -1,4 +1,4 @@
-import * as MapCore from "./ajrm-map-core.mjs?v=0.6.2";
+import * as MapCore from "./ajrm-map-core.mjs?v=0.6.3";
 
 const apiBase = "/plugins/signalk-ajrm-marine-dr-plotter";
 const gpsIntegrityApiBase = "/plugins/signalk-ajrm-marine-gps-integrity";
@@ -71,6 +71,7 @@ let autoChartFallbackLayer;
 let autoChartId;
 let autoChartList = [];
 let chartCycle = null;
+let mapActionToolbar = null;
 let chartResourcesLoaded = false;
 let chartResourcesLoading = null;
 let seamarkLayer;
@@ -204,6 +205,15 @@ function installCommonChartSelector() {
     map,
     getCharts: () => autoChartList,
     onChange: updateAutoChart,
+  }).addTo();
+  mapActionToolbar = MapCore.createActionToolbarControl({
+    L,
+    map,
+    actions: [
+      { title: "Navigation integrity", icon: MapCore.MAP_ACTION_ICONS.status, activate: () => elements.toggleStatus.click(), isPressed: () => elements.statusDrawer.classList.contains("open") },
+      { title: "Centre / follow own vessel", icon: MapCore.MAP_ACTION_ICONS.follow, activate: () => elements.centreOwnship.click(), isPressed: () => mapFollowSelf },
+      { title: "Plot current DR position", icon: MapCore.MAP_ACTION_ICONS.plot, activate: () => elements.plotNow.click() },
+    ],
   }).addTo();
 }
 
@@ -655,6 +665,7 @@ function updateControlButtonStates() {
   elements.centreOwnship.classList.toggle("paused", !mapFollowSelf);
   elements.centreOwnship.title = mapFollowSelf ? "Following own vessel" : "Follow paused. Click to centre own vessel";
   elements.centreOwnship.setAttribute("aria-label", elements.centreOwnship.title);
+  mapActionToolbar?.update();
 }
 
 function updateOperationalTrack(position, timestamp, force = false) {

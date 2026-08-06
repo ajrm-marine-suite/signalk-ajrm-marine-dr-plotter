@@ -41,6 +41,15 @@ body {
   white-space: nowrap;
 }
 
+.map-status-stack {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 1100;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 .topbar {
   position: fixed;
   z-index: 1000;
@@ -52,6 +61,10 @@ body {
   gap: 16px;
   align-items: center;
   pointer-events: none;
+}
+
+.topbar[hidden] {
+  display: none;
 }
 
 .brand,

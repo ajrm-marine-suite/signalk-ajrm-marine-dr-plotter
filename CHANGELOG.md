@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.6
+
+- Move Navigation Integrity, follow/centre and Plot Now from the upper-right
+  header into the shared Display-style left map-control stack.
+- Retain the standard Leaflet `+ / −` zoom buttons at the top of that stack.
+- Keep the GPS state as a centred status badge rather than treating it as a
+  map action.
+
 ## 0.6.5
 
 - Replace the separate chart drawer with the shared Display-style map control.

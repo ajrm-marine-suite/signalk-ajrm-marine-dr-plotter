@@ -2,6 +2,10 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
+Version `0.6.6` replaces the old upper-right action group with Display-style
+icon controls in the left Leaflet stack. The `+ / −` zoom buttons remain first,
+followed by chart controls, Navigation Integrity, follow/centre and Plot Now.
+
 Version `0.6.5` adopts the shared AJRM Marine map controls: Display-style
 basemap and overlay selection, nested Charts Provider Simple folder toggles,
 and a chart-cycle button when multiple enabled charts overlap the map centre.
