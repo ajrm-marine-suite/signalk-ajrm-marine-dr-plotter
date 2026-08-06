@@ -19,8 +19,8 @@ test("map page uses the standard left-side controls with zoom first", async () =
     readFile(new URL("../public/app.js", import.meta.url), "utf8"),
     readFile(new URL("../public/styles.css", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /ajrm-map-core\.css\?v=0\.6\.5/);
-  assert.match(html, /type="module" src="\.\/app\.js\?v=0\.6\.9"/);
+  assert.match(html, /ajrm-map-core\.css\?v=0\.6\.7/);
+  assert.match(html, /type="module" src="\.\/app\.js\?v=0\.6\.10"/);
   assert.match(html, /<header class="topbar" hidden>/);
   assert.match(html, /id="toggleStatus"[^>]+aria-pressed="false"/);
   assert.match(html, /id="statusDrawer" class="drawer drawer-left"/);
@@ -32,6 +32,7 @@ test("map page uses the standard left-side controls with zoom first", async () =
   assert.match(app, /L\.map\(elements\.map, \{ zoomControl: true \}\)/);
   assert.match(app, /MapCore\.createChartSelectorControl/);
   assert.match(app, /MapCore\.createChartCycleControl/);
+  assert.match(await readFile(new URL("../public/ajrm-map-core.mjs", import.meta.url), "utf8"), /CHART_CYCLE_SHORTCUT_STORAGE_KEY = "chartCycleShortcut"/);
   assert.match(app, /MapCore\.createActionToolbarControl/);
   assert.match(app, /function showChartCycleStatus\(\)/);
   assert.match(app, /Automatic chart:/);
