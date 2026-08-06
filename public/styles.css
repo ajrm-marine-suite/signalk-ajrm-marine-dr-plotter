@@ -257,11 +257,11 @@ button:active {
   position: fixed;
   z-index: 900;
   top: 88px;
-  width: min(360px, calc(100vw - 24px));
+  width: min(360px, calc(100vw - 64px));
   max-height: calc(100vh - 112px);
   overflow: auto;
   padding: 14px;
-  transform: translateX(calc(-100% - 18px));
+  transform: translateX(calc(-100% - 64px));
   transition: transform 0.18s ease;
 }
 
@@ -271,7 +271,7 @@ button:active {
 }
 
 .drawer-left {
-  left: 12px;
+  left: 52px;
 }
 
 .drawer.open {

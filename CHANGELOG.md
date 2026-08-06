@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.7
+
+- Start with Navigation Integrity closed and expose it only through its left
+  toolbar button.
+- Offset the open Navigation Integrity drawer to the right of the map toolbar
+  so it does not cover zoom, chart or application controls.
+- Enforce vertical application action buttons through Map Core 0.6.4.
+
 ## 0.6.6
 
 - Move Navigation Integrity, follow/centre and Plot Now from the upper-right

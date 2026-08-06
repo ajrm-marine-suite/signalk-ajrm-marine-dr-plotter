@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>AJRM Marine DR Plotter</title>
     <link rel="stylesheet" href="./leaflet.css">
-    <link rel="stylesheet" href="./ajrm-map-core.css?v=0.6.3">
-    <link rel="stylesheet" href="./styles.css?v=0.6.6">
+    <link rel="stylesheet" href="./ajrm-map-core.css?v=0.6.4">
+    <link rel="stylesheet" href="./styles.css?v=0.6.7">
   </head>
   <body>
     <div id="map" class="map" aria-label="Dead-reckoning chart"></div>
@@ -20,7 +20,7 @@
         </div>
       </div>
       <div class="top-actions">
-        <button id="toggleStatus" class="map-control-button" type="button" title="Status" aria-label="Status" aria-pressed="true">
+        <button id="toggleStatus" class="map-control-button" type="button" title="Status" aria-label="Status" aria-pressed="false">
           <span class="control-icon status-icon" aria-hidden="true"></span>
         </button>
         <button id="toggleCharts" class="map-control-button" type="button" title="Charts" aria-label="Charts" aria-pressed="false" hidden>
@@ -58,7 +58,7 @@
       </div>
     </div>
 
-    <aside id="statusDrawer" class="drawer drawer-left open" aria-label="Navigation integrity">
+    <aside id="statusDrawer" class="drawer drawer-left" aria-label="Navigation integrity">
       <div class="drawer-header">
         <div>
           <h2>Navigation integrity</h2>
@@ -203,6 +203,6 @@
     <div id="cursorPosition" class="cursor-position" aria-live="polite">Cursor --</div>
     <script src="./leaflet.js"></script>
     <script src="./protomaps-leaflet.js"></script>
-    <script type="module" src="./app.js?v=0.6.6"></script>
+    <script type="module" src="./app.js?v=0.6.7"></script>
   </body>
 </html>

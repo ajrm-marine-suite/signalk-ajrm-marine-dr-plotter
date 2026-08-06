@@ -2,6 +2,10 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
+Version `0.6.7` starts with Navigation Integrity closed. Its toolbar button
+opens it beside, rather than over, the left map controls. Application action
+buttons use the vertical Map Core `0.6.4` stack.
+
 Version `0.6.6` replaces the old upper-right action group with Display-style
 icon controls in the left Leaflet stack. The `+ / −` zoom buttons remain first,
 followed by chart controls, Navigation Integrity, follow/centre and Plot Now.
