@@ -20,15 +20,20 @@ test("map page uses the standard left-side controls with zoom first", async () =
     readFile(new URL("../public/styles.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /ajrm-map-core\.css\?v=0\.6\.4/);
-  assert.match(html, /type="module" src="\.\/app\.js\?v=0\.6\.7"/);
+  assert.match(html, /type="module" src="\.\/app\.js\?v=0\.6\.8"/);
   assert.match(html, /<header class="topbar" hidden>/);
   assert.match(html, /id="toggleStatus"[^>]+aria-pressed="false"/);
   assert.match(html, /id="statusDrawer" class="drawer drawer-left"/);
   assert.doesNotMatch(html, /id="statusDrawer" class="[^"]*\bopen\b/);
+  assert.match(html, /id="chartCycleStatus" class="chart-cycle-status"[^>]+hidden/);
   assert.match(css, /\.drawer-left\s*\{[^}]*left:\s*52px/s);
+  assert.match(css, /\.chart-cycle-status\s*\{/);
   assert.match(app, /L\.map\(elements\.map, \{ zoomControl: true \}\)/);
   assert.match(app, /MapCore\.createChartSelectorControl/);
   assert.match(app, /MapCore\.createChartCycleControl/);
   assert.match(app, /MapCore\.createActionToolbarControl/);
+  assert.match(app, /function showChartCycleStatus\(\)/);
+  assert.match(app, /Automatic chart:/);
+  assert.match(app, /Chart \$\{Math\.max\(0, index\) \+ 1\} of \$\{candidates\.length\}:/);
   assert.doesNotMatch(app, /position:\s*["']topright["']/);
 });

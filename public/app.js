@@ -13,6 +13,7 @@ const elements = {
   plotNow: document.querySelector("#plotNow"),
   gpsStatusIndicator: document.querySelector("#gpsStatusIndicator"),
   gpsStatusText: document.querySelector("#gpsStatusText"),
+  chartCycleStatus: document.querySelector("#chartCycleStatus"),
   statusDrawer: document.querySelector("#statusDrawer"),
   chartDrawer: document.querySelector("#chartDrawer"),
   statusLine: document.querySelector("#statusLine"),
@@ -71,6 +72,7 @@ let autoChartFallbackLayer;
 let autoChartId;
 let autoChartList = [];
 let chartCycle = null;
+let chartCycleStatusTimer = null;
 let mapActionToolbar = null;
 let chartResourcesLoaded = false;
 let chartResourcesLoading = null;
@@ -204,7 +206,10 @@ function installCommonChartSelector() {
     L,
     map,
     getCharts: () => autoChartList,
-    onChange: updateAutoChart,
+    onChange: () => {
+      updateAutoChart();
+      showChartCycleStatus();
+    },
   }).addTo();
   mapActionToolbar = MapCore.createActionToolbarControl({
     L,
@@ -513,6 +518,37 @@ function updateAutoChart() {
   autoChartId = chart.__autoChartId;
   if (autoChartLayer) autoChartGroup.addLayer(autoChartLayer);
   keepChartLayersOnTop();
+}
+
+function chartDisplayName(chart) {
+  return chart?.name || chart?.title || chart?.description || chart?.__ajrmMapChartId || chart?.__autoChartId || "Unnamed chart";
+}
+
+function showChartCycleStatus() {
+  if (!elements.chartCycleStatus || !map || !chartCycle) return;
+  const selected = chooseAutoChart();
+  let message = "No enabled chart covers the map centre";
+  if (selected) {
+    const centre = map.getCenter();
+    const candidates = MapCore.chartCandidates(autoChartList, {
+      lat: centre.lat,
+      lng: centre.lng,
+      zoom: map.getZoom(),
+      maxZoom: map.getMaxZoom(),
+    });
+    if (chartCycle.manualChartId) {
+      const index = candidates.findIndex((chart) => MapCore.chartId(chart) === chartCycle.manualChartId);
+      message = `Chart ${Math.max(0, index) + 1} of ${candidates.length}: ${chartDisplayName(selected)}`;
+    } else {
+      message = `Automatic chart: ${chartDisplayName(selected)}`;
+    }
+  }
+  elements.chartCycleStatus.textContent = message;
+  elements.chartCycleStatus.hidden = false;
+  if (chartCycleStatusTimer != null) clearTimeout(chartCycleStatusTimer);
+  chartCycleStatusTimer = setTimeout(() => {
+    elements.chartCycleStatus.hidden = true;
+  }, 3500);
 }
 
 function keepChartLayersOnTop() {

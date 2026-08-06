@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.8
+
+- Show Display-style top-centre confirmation after cycling an overlapping
+  chart, including automatic/manual mode, position in the candidate list and
+  chart name.
+
 ## 0.6.7
 
 - Start with Navigation Integrity closed and expose it only through its left
