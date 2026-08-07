@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.2
+
+- Correct the package-relative Signal K App Store icon path.
+
 ## 0.7.1
 
 - Adopt reviewed AJRM Marine Map Core 0.7.0, including complete chart-selector
