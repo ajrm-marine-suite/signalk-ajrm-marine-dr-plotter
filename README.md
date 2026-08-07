@@ -6,69 +6,12 @@ Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-dr-plotter.git#v0.6.15 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-dr-plotter.git#v0.7.0 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
 Enable **AJRM Marine DR Plotter** and its required GPS Integrity provider in
 Signal K.
-
-Version `0.6.13` adds visible hover/focus help to every map control icon,
-including zoom, chart selection, chart cycling and DR Plotter actions.
-
-Version `0.6.12` uses Map Core's shared top-centre chart-cycle status
-implementation, also used by Voyage Viewer and Harbour Editor.
-
-Version `0.6.11` keeps chart folders reachable in short browser windows by
-measuring the selector's remaining viewport height and enabling contained
-mouse/touch scrolling through Map Core `0.6.8`.
-
-Version `0.6.10` cycles overlapping charts with Display's selected keyboard
-shortcut (`C` by default), using the shared browser setting from Map Core
-`0.6.7`.
-
-Version `0.6.9` matches Display's map toolbar button size, shared icons and
-uniform spacing through Map Core `0.6.5`.
-
-Version `0.6.8` shows the selected chart in a temporary top-centre status box
-after each chart-cycle action, matching Display.
-
-Version `0.6.7` starts with Navigation Integrity closed. Its toolbar button
-opens it beside, rather than over, the left map controls. Application action
-buttons use the vertical Map Core `0.6.4` stack.
-
-Version `0.6.6` replaces the old upper-right action group with Display-style
-icon controls in the left Leaflet stack. The `+ / −` zoom buttons remain first,
-followed by chart controls, Navigation Integrity, follow/centre and Plot Now.
-
-Version `0.6.5` adopts the shared AJRM Marine map controls: Display-style
-basemap and overlay selection, nested Charts Provider Simple folder toggles,
-and a chart-cycle button when multiple enabled charts overlap the map centre.
-
-Version `0.6.4` keeps status polling read-only and serializes automatic GPS
-outage transitions so one recovery produces exactly one GPS-return fix. It also
-keeps clickable navigator-fix popup positions synchronised with the active
-coordinate-format selection, including changes made after the fixes were first
-drawn.
-
-Version `0.6.2` adds a live coordinate-format selector to the status drawer.
-The Signal K plugin setting remains the default, while each browser can choose
-and remember degrees/minutes/seconds, degrees/decimal-minutes, or decimal
-degrees without restarting the plugin.
-
-Version `0.5.28` publishes the same persistence status under
-`vessels.self.plugins.ajrmMarineDrPlotter` so Console BITE, Capture, and
-Snapshot can verify it from captured Signal K state.
-
-Version `0.5.27` exposes the server-side plot-fix and breadcrumb persistence
-contract in the status endpoint so BITE, Capture, and Voyage Viewer can verify
-that navigator fixes and DR tracks survive page changes and are bundle-ready.
-
-Version `0.5.4` declares AJRM Marine GPS Integrity as a required companion app
-because DR Plotter renders the dead-reckoning state published by that provider.
-
-Version `0.5.2` uses the same chart selector and follow/centre own-vessel icons
-as AJRM Marine Display.
 
 This app is deliberately not an AIS viewer. It does not plot AIS targets, CPA
 lines, traffic lists, or target alarms. Its job is to answer one question:
@@ -104,7 +47,7 @@ The plotter renders:
   authored by the Signal K plugin, not by the browser, so they are recorded even
   when no DR Plotter page is open. Fixes are stored on the Signal K server,
   capped to the newest 1000 records, shared by every display device, and can be
-  manually pruned by age after they have been captured in a voyage bundle.
+  manually pruned by age from the webapp.
 - Colour-coded GPS trust state and warnings.
 
 Chart controls follow the same lightweight model as Voyage Viewer: offline
@@ -129,9 +72,9 @@ unknown or future contract unavailable instead of guessing its meaning.
 
 ## Fix Resources
 
-Navigator fixes are not stored as Signal K notes. DR Plotter keeps the existing
-`plot-fixes.json` file for Capture and Voyage Viewer compatibility, and also
-exposes the same records from `/plugins/signalk-ajrm-marine-dr-plotter/fixes`
+Navigator fixes are not stored as Signal K notes. DR Plotter persists them in
+its server-side `plot-fixes.json` store and exposes the same records from
+`/plugins/signalk-ajrm-marine-dr-plotter/fixes`
 as GeoJSON-style `fixes` resources. Each fix records its method, chart symbol,
 timestamp, position, operational and integrity DR context, assurance,
 GPS-dependence, leeway/current origin, navigation-reference provenance,
@@ -139,6 +82,11 @@ uncertainty, and available speed/heading/current data so the model can later be
 promoted to a shared Signal K resource type. Current-vector fields retain their
 explicit current/residual origin. Missing values remain `null`; they are never
 written or displayed as zero merely because evidence is unavailable.
+
+Current Capture records its own canonical DR state track; it does not copy DR
+Plotter's private plot-fix file. Moving navigator fixes into the canonical
+voyage contract is part of the planned Navigation Integrity/Voyages boundary
+work, rather than an undocumented filesystem dependency.
 
 
 ## Public Beta

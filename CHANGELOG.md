@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.0
+
+- Publish OpenAPI for every current HTTP route and require Signal K read/write
+  or admin access for all settings, track, and plot-fix mutations.
+- Make shutdown asynchronous and wait for in-flight navigation-state and
+  plot-fix writes before returning.
+- Prevent disabled or stopped instances from recording startup/subscription
+  state, clear the published status projection on stop, and expose running state.
+- Preserve an omitted plot-fix interval during partial settings updates.
+- Remove false `captureFile`/`capturePath` status claims: current Capture records
+  its canonical DR state track independently and does not copy DR Plotter's
+  private plot-fix store.
+- Replace accumulated release notes in the README with current behaviour;
+  detailed history remains in this changelog.
+
 ## 0.6.15
 
 - Make the bundled Map Core integrity test portable across LF and CRLF

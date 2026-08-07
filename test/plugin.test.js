@@ -33,7 +33,7 @@ test("normalizes configured defaults", () => {
   assert.equal(pluginFactory._private.normalizeOptions({}, { plotFixIntervalMinutes: 5 }).plotFixIntervalMinutes, 5);
 });
 
-test("status declares that AIS targets are intentionally absent", () => {
+test("status declares that AIS targets are intentionally absent", async () => {
   const messages = [];
   const app = {
     handleMessage(_pluginId, message) {
@@ -57,22 +57,78 @@ test("status declares that AIS targets are intentionally absent", () => {
     delete() {},
   });
   assert.equal(json.noAisTargets, true);
+  assert.equal(json.running, true);
   assert.equal(json.coordinateFormat, "dms");
   assert.equal(Number.isFinite(json.plotFixIntervalMinutes), true);
   assert.equal(json.plotFixPersistence.serverSide, true);
   assert.equal(json.plotFixPersistence.storage, "server");
   assert.equal(json.plotFixPersistence.maxCount, 1000);
-  assert.match(json.plotFixPersistence.captureFile, /dr-plot-fixes\.json$/);
   assert.equal(json.trackPersistence.serverSide, true);
   assert.equal(json.trackPersistence.storage, "server");
   assert.equal(json.trackPersistence.maxCount, 7200);
-  assert.match(json.trackPersistence.captureFile, /dr-track\.jsonl$/);
   assert.match(json.dataDirectory, /signalk-ajrm-marine-dr-plotter$/);
   assert.match(json.startedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.deepEqual(json.ajrmMarineGpsIntegrity, { trust: "normal" });
   const projection = messages[0].updates[0].values[0];
   assert.equal(projection.path, "plugins.ajrmMarineDrPlotter");
   assert.equal(projection.value.plotFixPersistence.serverSide, true);
+  const openApi = plugin.getOpenApi();
+  assert.equal(openApi.openapi, "3.0.3");
+  for (const routePath of ["/status", "/settings", "/plot-fixes", "/track", "/fixes", "/charts"]) {
+    assert.ok(openApi.paths[routePath], `${routePath} is documented`);
+  }
+  const stopResult = plugin.stop();
+  assert.equal(typeof stopResult?.then, "function");
+  await stopResult;
+  const stoppedProjection = messages.at(-1).updates[0].values[0];
+  assert.equal(stoppedProjection.path, "plugins.ajrmMarineDrPlotter");
+  assert.equal(stoppedProjection.value, null);
+});
+
+test("all mutating routes require Signal K write access", async () => {
+  const plugin = pluginFactory({
+    handleMessage() {},
+    setPluginStatus() {},
+  });
+  const routes = new Map();
+  plugin.registerWithRouter({
+    get() {},
+    put(routePath, handler) {
+      routes.set(`PUT ${routePath}`, handler);
+    },
+    post(routePath, handler) {
+      routes.set(`POST ${routePath}`, handler);
+    },
+    delete(routePath, handler) {
+      routes.set(`DELETE ${routePath}`, handler);
+    },
+  });
+
+  for (const routeName of [
+    "PUT /settings",
+    "PUT /track",
+    "DELETE /track",
+    "PUT /plot-fixes",
+    "POST /plot-fixes",
+    "DELETE /plot-fixes",
+  ]) {
+    let statusCode = 200;
+    let body = null;
+    await routes.get(routeName)(
+      { skIsAuthenticated: false, body: {} },
+      {
+        status(code) {
+          statusCode = code;
+          return this;
+        },
+        json(value) {
+          body = value;
+        },
+      },
+    );
+    assert.equal(statusCode, 403, routeName);
+    assert.match(body.error, /read\/write|admin/i, routeName);
+  }
 });
 
 test("unwraps plain Signal K values without changing them", () => {

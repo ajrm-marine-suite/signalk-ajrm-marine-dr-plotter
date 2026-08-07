@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const packageInfo = require("../package.json");
+const openApi = require("./openApi.json");
 
 const PLUGIN_ID = "signalk-ajrm-marine-dr-plotter";
 const AJRM_MARINE_GPS_INTEGRITY_STATE_PATH = "plugins.ajrmMarineGpsIntegrity.navigationIntegrity";
@@ -31,6 +32,8 @@ module.exports = function ajrmMarineDrPlotter(app) {
   let timedPlotFixWritePending = false;
   let trackWritePending = false;
   let automaticFixQueue = createSerialQueue();
+  let pendingOperations = new Set();
+  let running = false;
 
   plugin.id = PLUGIN_ID;
   plugin.name = "AJRM Marine DR Plotter";
@@ -86,18 +89,24 @@ module.exports = function ajrmMarineDrPlotter(app) {
   };
 
   plugin.start = (pluginOptions = {}) => {
+    running = true;
     options = normalizeOptions(pluginOptions, loadSettingsSync());
     startedAt = new Date().toISOString();
     automaticFixQueue = createSerialQueue();
+    pendingOperations = new Set();
     subscribe();
-    recordNavigationState(getSelfPath(app, AJRM_MARINE_GPS_INTEGRITY_STATE_PATH)).catch((error) => {
-      app.error?.(`[${PLUGIN_ID}] startup navigation state record failed: ${error.stack || error.message}`);
-    });
+    if (options.enabled) {
+      trackOperation(
+        recordNavigationState(getSelfPath(app, AJRM_MARINE_GPS_INTEGRITY_STATE_PATH)),
+        "startup navigation state record",
+      );
+    }
     publishStatusProjection();
     app.setPluginStatus?.(`${options.enabled ? "Started" : "Disabled"} v${packageInfo.version}`);
   };
 
-  plugin.stop = () => {
+  plugin.stop = async () => {
+    running = false;
     for (const unsubscribe of unsubscribes) {
       try {
         unsubscribe();
@@ -106,6 +115,9 @@ module.exports = function ajrmMarineDrPlotter(app) {
       }
     }
     unsubscribes = [];
+    await Promise.allSettled([...pendingOperations]);
+    await plotFixesQueue.catch(() => {});
+    pendingOperations.clear();
     startedAt = null;
     lastTrustState = null;
     gpsOutageActive = false;
@@ -113,6 +125,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
     automaticFixQueue = createSerialQueue();
     timedPlotFixWritePending = false;
     trackWritePending = false;
+    publishStatusProjection(null);
   };
 
   plugin.registerWithRouter = (router) => {
@@ -120,10 +133,12 @@ module.exports = function ajrmMarineDrPlotter(app) {
       res.json(status());
     });
 
-    router.put("/settings", async (req, res) => {
+    router.put("/settings", requireWriteAccess(async (req, res) => {
       try {
         const next = {
-          plotFixIntervalMinutes: normalizePlotFixIntervalMinutes(req.body?.plotFixIntervalMinutes),
+          plotFixIntervalMinutes: normalizePlotFixIntervalMinutes(
+            req.body?.plotFixIntervalMinutes ?? options.plotFixIntervalMinutes,
+          ),
         };
         options = { ...options, ...next };
         await saveSettings(next);
@@ -133,7 +148,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
         app.error?.(`[${PLUGIN_ID}] settings save failed: ${error.stack || error.message}`);
         res.status(500).json({ ok: false, error: error.message });
       }
-    });
+    }));
 
     router.get("/plot-fixes", async (_req, res) => {
       try {
@@ -153,7 +168,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
       }
     });
 
-    router.put("/track", async (req, res) => {
+    router.put("/track", requireWriteAccess(async (req, res) => {
       try {
         const points = normalizeTrackPoints(req.body?.points || req.body?.track || []);
         await saveOperationalTrack(points);
@@ -163,9 +178,9 @@ module.exports = function ajrmMarineDrPlotter(app) {
         app.error?.(`[${PLUGIN_ID}] operational track save failed: ${error.stack || error.message}`);
         res.status(500).json({ ok: false, error: error.message });
       }
-    });
+    }));
 
-    router.delete("/track", async (_req, res) => {
+    router.delete("/track", requireWriteAccess(async (_req, res) => {
       try {
         await saveOperationalTrack([]);
         operationalTrackUpdatedAt = new Date().toISOString();
@@ -174,7 +189,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
         app.error?.(`[${PLUGIN_ID}] operational track clear failed: ${error.stack || error.message}`);
         res.status(500).json({ ok: false, error: error.message });
       }
-    });
+    }));
 
     router.get("/fixes", async (_req, res) => {
       try {
@@ -190,7 +205,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
       }
     });
 
-    router.put("/plot-fixes", async (req, res) => {
+    router.put("/plot-fixes", requireWriteAccess(async (req, res) => {
       try {
         const plotFixes = normalizePlotFixes(req.body?.plotFixes || req.body?.fixes || []);
         await savePlotFixes(plotFixes);
@@ -200,9 +215,9 @@ module.exports = function ajrmMarineDrPlotter(app) {
         app.error?.(`[${PLUGIN_ID}] plot-fix save failed: ${error.stack || error.message}`);
         res.status(500).json({ ok: false, error: error.message });
       }
-    });
+    }));
 
-    router.post("/plot-fixes", async (req, res) => {
+    router.post("/plot-fixes", requireWriteAccess(async (req, res) => {
       try {
         const plotFix = normalizePlotFix(req.body?.plotFix || req.body);
         if (!plotFix) {
@@ -215,9 +230,9 @@ module.exports = function ajrmMarineDrPlotter(app) {
         app.error?.(`[${PLUGIN_ID}] plot-fix append failed: ${error.stack || error.message}`);
         res.status(500).json({ ok: false, error: error.message });
       }
-    });
+    }));
 
-    router.delete("/plot-fixes", async (_req, res) => {
+    router.delete("/plot-fixes", requireWriteAccess(async (_req, res) => {
       try {
         await savePlotFixes([]);
         plotFixesUpdatedAt = new Date().toISOString();
@@ -226,7 +241,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
         app.error?.(`[${PLUGIN_ID}] plot-fix clear failed: ${error.stack || error.message}`);
         res.status(500).json({ ok: false, error: error.message });
       }
-    });
+    }));
 
     router.get("/charts", async (_req, res) => {
       try {
@@ -241,8 +256,37 @@ module.exports = function ajrmMarineDrPlotter(app) {
       }
     });
   };
+  plugin.getOpenApi = () => openApi;
 
   return plugin;
+
+  function requireWriteAccess(handler) {
+    return function writeAccessHandler(req, res) {
+      const permission = req.skPrincipal?.permissions;
+      if (
+        permission === "admin" ||
+        permission === "readwrite" ||
+        (permission === undefined && req.skIsAuthenticated !== false)
+      ) {
+        return handler(req, res);
+      }
+      res.status(403).json({
+        ok: false,
+        error: "DR Plotter controls require Signal K read/write or admin access.",
+      });
+      return undefined;
+    };
+  }
+
+  function trackOperation(operation, label) {
+    const tracked = Promise.resolve(operation)
+      .catch((error) => {
+        app.error?.(`[${PLUGIN_ID}] ${label} failed: ${error.stack || error.message}`);
+      })
+      .finally(() => pendingOperations.delete(tracked));
+    pendingOperations.add(tracked);
+    return tracked;
+  }
 
   function status() {
     const integrity = getSelfPath(app, AJRM_MARINE_GPS_INTEGRITY_STATE_PATH) || null;
@@ -250,6 +294,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
       ok: true,
       plugin: PLUGIN_ID,
       version: packageInfo.version,
+      running,
       enabled: options.enabled,
       refreshIntervalMs: options.refreshIntervalMs,
       coordinateFormat: options.coordinateFormat,
@@ -257,13 +302,11 @@ module.exports = function ajrmMarineDrPlotter(app) {
       startedAt,
       noAisTargets: true,
       dataDirectory: DATA_DIRECTORY,
-      capturePath: "tracks/",
       plotFixPersistence: {
         serverSide: true,
         persisted: true,
         storage: "server",
         file: PLOT_FIXES_FILE,
-        captureFile: "tracks/dr-plot-fixes.json",
         maxCount: MAX_PLOT_FIXES,
         plotFixIntervalMinutes: options.plotFixIntervalMinutes,
         retentionPolicy: "Newest records are retained server-side; manual pruning is available from the web app.",
@@ -274,9 +317,8 @@ module.exports = function ajrmMarineDrPlotter(app) {
         persisted: true,
         storage: "server",
         file: OPERATIONAL_TRACK_FILE,
-        captureFile: "tracks/dr-track.jsonl",
         maxCount: MAX_TRACK_POINTS,
-        retentionPolicy: "Newest operational breadcrumb points are retained server-side and bundled by Capture.",
+        retentionPolicy: "Newest operational breadcrumb points are retained server-side.",
         updatedAt: operationalTrackUpdatedAt,
       },
       defaults: {
@@ -297,7 +339,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
     };
   }
 
-  function publishStatusProjection() {
+  function publishStatusProjection(value = status()) {
     if (typeof app.handleMessage !== "function") return;
     app.handleMessage(PLUGIN_ID, {
       context: "vessels.self",
@@ -306,7 +348,7 @@ module.exports = function ajrmMarineDrPlotter(app) {
           values: [
             {
               path: "plugins.ajrmMarineDrPlotter",
-              value: status(),
+              value,
             },
           ],
         },
@@ -337,15 +379,14 @@ module.exports = function ajrmMarineDrPlotter(app) {
     for (const update of delta?.updates || []) {
       for (const value of update?.values || []) {
         if (value?.path === AJRM_MARINE_GPS_INTEGRITY_STATE_PATH) {
-          recordNavigationState(value.value).catch((error) => {
-            app.error?.(`[${PLUGIN_ID}] navigation state record failed: ${error.stack || error.message}`);
-          });
+          trackOperation(recordNavigationState(value.value), "navigation state record");
         }
       }
     }
   }
 
   async function recordNavigationState(state) {
+    if (!running || !options.enabled) return;
     await appendOperationalTrackSample(state);
     await recordAutomaticFixes(state);
   }
