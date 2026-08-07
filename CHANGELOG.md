@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1
+
+- Adopt reviewed AJRM Marine Map Core 0.7.0, including complete chart-selector
+  listener cleanup when a map is destroyed or recreated.
+
 ## 0.7.0
 
 - Publish OpenAPI for every current HTTP route and require Signal K read/write
