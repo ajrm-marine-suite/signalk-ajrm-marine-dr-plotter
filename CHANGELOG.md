@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.15
+
+- Make the bundled Map Core integrity test portable across LF and CRLF
+  checkouts while retaining exact content comparison.
+
 ## 0.6.14
 
 - Add current GitHub installation and provider-enablement guidance.
