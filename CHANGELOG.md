@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.14
+
+- Add current GitHub installation and provider-enablement guidance.
+
 ## 0.6.13
 
 - Add visible hover/focus help to zoom, chart and DR Plotter map icons through

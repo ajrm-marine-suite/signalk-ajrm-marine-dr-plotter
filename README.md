@@ -2,6 +2,17 @@
 
 Own-vessel dead-reckoning chart plotter for AJRM Marine GPS Integrity.
 
+## Install
+
+```bash
+cd ~/.signalk
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-dr-plotter.git#v0.6.14 --omit=dev --no-package-lock
+sudo systemctl restart signalk
+```
+
+Enable **AJRM Marine DR Plotter** and its required GPS Integrity provider in
+Signal K.
+
 Version `0.6.13` adds visible hover/focus help to every map control icon,
 including zoom, chart selection, chart cycling and DR Plotter actions.
 

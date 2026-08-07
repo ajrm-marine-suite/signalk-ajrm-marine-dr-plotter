@@ -20,7 +20,7 @@ test("map page uses the standard left-side controls with zoom first", async () =
     readFile(new URL("../public/styles.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /ajrm-map-core\.css\?v=0\.6\.11/);
-  assert.match(html, /type="module" src="\.\/app\.js\?v=0\.6\.13"/);
+  assert.match(html, /type="module" src="\.\/app\.js\?v=0\.6\.14"/);
   assert.match(html, /<header class="topbar" hidden>/);
   assert.match(html, /id="toggleStatus"[^>]+aria-pressed="false"/);
   assert.match(html, /id="statusDrawer" class="drawer drawer-left"/);
