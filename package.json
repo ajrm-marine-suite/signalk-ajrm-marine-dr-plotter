@@ -1,10 +1,10 @@
 {
   "name": "signalk-ajrm-marine-dr-plotter",
-  "version": "0.7.2",
-  "description": "Dead-reckoning chart plotter for AJRM Marine Suite GPS degradation testing.",
+  "version": "0.8.0",
+  "description": "Retired compatibility marker; DR Plotter moved into AJRM Marine Navigation Integrity.",
   "main": "plugin/index.js",
   "scripts": {
-    "test": "node --test && node --check plugin/index.js && node --check public/app.js"
+    "test": "node --test test/retired.test.js && node --check plugin/index.js"
   },
   "keywords": [
     "signalk-node-server-plugin",
@@ -32,20 +32,15 @@
     "node": ">=20"
   },
   "files": [
-    "plugin",
-    "public",
+    "plugin/index.js",
     "README.md",
     "LICENSE"
   ],
-  "signalk-plugin-enabled-by-default": true,
+  "signalk-plugin-enabled-by-default": false,
   "signalk": {
-    "displayName": "AJRM Marine DR Plotter",
-    "appIcon": "./public/icon.svg",
-    "requires": [
+    "displayName": "AJRM Marine DR Plotter (retired)",
+    "recommends": [
       "signalk-ajrm-marine-gps-integrity"
     ]
-  },
-  "devDependencies": {
-    "@ajrm-marine/map-core": "github:ajrm-marine-suite/ajrm-marine-map-core#v0.7.0"
   }
 }
